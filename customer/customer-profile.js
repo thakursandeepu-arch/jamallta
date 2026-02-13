@@ -10,6 +10,7 @@ let jobsLoaded = false;
 let paymentsLoaded = false;
 let filter = "all";
 let currentUserEmail = "";
+let currentUserPhone = "";
 let isPaying = false;
 let customerBalance = null;
 let hasCustomerBalance = false;
@@ -206,9 +207,11 @@ async function startPayment(amount, jobId) {
 
   try {
     const order = await callPaymentHttp("createRazorpayOrderHttp", { amount, jobId, studioName });
-    const upiFlow = isMobileDevice() ? "intent" : "collect";
+    const isMobile = isMobileDevice();
+    const upiFlow = isMobile ? "intent" : "collect";
+    // Desktop par UPI (VPA/phone) avoid karein; mobile par UPI allow rahe.
     const allowMethods = {
-      upi: true,
+      upi: isMobile,
       card: true,
       netbanking: true,
       wallet: true,
@@ -225,7 +228,8 @@ async function startPayment(amount, jobId) {
       order_id: order.orderId,
       prefill: {
         email: currentUserEmail || "",
-        name: studioName || ""
+        name: studioName || "",
+        contact: currentUserPhone || ""
       },
       theme: { color: "#2f89ff" },
       method: allowMethods,
@@ -297,8 +301,10 @@ async function loadCustomer({ email, phone }) {
       .filter(v => v);
     currentStudioNames = [...new Set(currentStudioNames)];
 
+    const phoneVal = data.phone || data.phoneE164 || "";
+    currentUserPhone = phoneVal ? String(phoneVal).replace(/\s+/g, "") : "";
     if (emailEl) emailEl.textContent = data.email || data.gmail || email || "-";
-    if (phoneEl) phoneEl.textContent = data.phone || data.phoneE164 || "-";
+    if (phoneEl) phoneEl.textContent = phoneVal || "-";
     if (cityEl) cityEl.textContent = data.city || "-";
     if (sidebarStudio) sidebarStudio.textContent = data.studioName || "-";
     if (sidebarEmail) sidebarEmail.textContent = data.email || data.gmail || email || "-";
