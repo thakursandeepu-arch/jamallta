@@ -11,6 +11,7 @@ let paymentsLoaded = false;
 let filter = "all";
 let currentUserEmail = "";
 let currentUserPhone = "";
+let currentUserId = "";
 let isPaying = false;
 let customerBalance = null;
 let hasCustomerBalance = false;
@@ -92,6 +93,9 @@ const payAmountInput = document.getElementById("payAmountInput");
 const paySubtitle = document.getElementById("paySubtitle");
 const payFullBtn = document.getElementById("payFullBtn");
 const payMaxHint = document.getElementById("payMaxHint");
+const notificationsList = document.getElementById("notificationsList");
+const notificationsEmpty = document.getElementById("notificationsEmpty");
+const enableNotificationsBtn = document.getElementById("enableNotificationsBtn");
 
 const isMobileDevice = () => /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
@@ -101,6 +105,245 @@ const processingCount = document.getElementById("processingCount");
 const readyCount = document.getElementById("readyCount");
 const paidCount = document.getElementById("paidCount");
 const unpaidCount = document.getElementById("unpaidCount");
+
+const NOTIF_TYPES = {
+  COPY_READY: "copy_ready",
+  ASSIGNED: "assigned",
+  READY: "ready"
+};
+
+let notifCache = [];
+let notifState = { init: false, jobs: {} };
+
+function notifStorageKey() {
+  const key = currentUserId || studioName || "guest";
+  return `custNotifs:${key}`;
+}
+
+function notifStateKey() {
+  const key = currentUserId || studioName || "guest";
+  return `custNotifState:${key}`;
+}
+
+function loadNotifCache() {
+  if (!currentUserId && !studioName) return;
+  try {
+    const raw = localStorage.getItem(notifStorageKey());
+    notifCache = raw ? JSON.parse(raw) : [];
+  } catch {
+    notifCache = [];
+  }
+}
+
+function saveNotifCache() {
+  if (!currentUserId && !studioName) return;
+  localStorage.setItem(notifStorageKey(), JSON.stringify(notifCache.slice(0, 100)));
+}
+
+function loadNotifState() {
+  if (!currentUserId && !studioName) return;
+  try {
+    const raw = localStorage.getItem(notifStateKey());
+    notifState = raw ? JSON.parse(raw) : { init: false, jobs: {} };
+  } catch {
+    notifState = { init: false, jobs: {} };
+  }
+}
+
+function saveNotifState() {
+  if (!currentUserId && !studioName) return;
+  localStorage.setItem(notifStateKey(), JSON.stringify(notifState));
+}
+
+function formatCurrency(v) {
+  const num = Number(v || 0);
+  return `Rs. ${num.toFixed(2)}`;
+}
+
+function projectDisplayName(j) {
+  return j?.projectName || j?.jobNo || "your project";
+}
+
+function updateNotificationPermissionUI() {
+  if (!enableNotificationsBtn) return;
+  if (!("Notification" in window)) {
+    enableNotificationsBtn.style.display = "none";
+    return;
+  }
+  const p = Notification.permission;
+  if (p === "granted") {
+    enableNotificationsBtn.textContent = "Notifications On";
+    enableNotificationsBtn.disabled = true;
+  } else if (p === "denied") {
+    enableNotificationsBtn.textContent = "Notifications Blocked";
+    enableNotificationsBtn.disabled = true;
+  } else {
+    enableNotificationsBtn.textContent = "Allow Notifications";
+    enableNotificationsBtn.disabled = false;
+  }
+}
+
+function requestNotificationsPermission() {
+  if (!("Notification" in window)) return;
+  Notification.requestPermission().then(() => {
+    updateNotificationPermissionUI();
+  });
+}
+
+function openLoginPage() {
+  window.location.href = "/login/index.html";
+}
+
+function showBrowserNotification(title, message) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  try {
+    const n = new Notification(title, { body: message });
+    n.onclick = () => {
+      openLoginPage();
+      n.close();
+    };
+  } catch {
+    // Ignore notification errors
+  }
+}
+
+function addNotificationItem(item) {
+  notifCache.unshift(item);
+  saveNotifCache();
+  renderNotifications();
+  showBrowserNotification(item.title, item.message);
+}
+
+function renderNotifications() {
+  if (!notificationsList) return;
+  notificationsList.innerHTML = "";
+  if (!notifCache.length) {
+    if (notificationsEmpty) notificationsEmpty.style.display = "block";
+    if (notificationsEmpty) notificationsList.appendChild(notificationsEmpty);
+    return;
+  }
+  if (notificationsEmpty) notificationsEmpty.style.display = "none";
+
+  notifCache.forEach(n => {
+    const totalLine = Number.isFinite(n.totalAmount)
+      ? `<div>Total: ${formatCurrency(n.totalAmount)}</div>`
+      : "";
+    const payBtn = n.showPay && Number(n.dueAmount || 0) > 0
+      ? `<button class="btn btn-primary btn-sm notif-pay" data-job="${n.jobId}" data-due="${n.dueAmount}">Pay Now</button>`
+      : "";
+    const html = `
+      <div class="notification-item" data-id="${n.id}">
+        <div class="notification-title">${n.title}</div>
+        <div class="notification-message">${n.message}</div>
+        <div class="notification-meta">
+          ${totalLine}
+          <div>${new Date(n.createdAt).toLocaleString()}</div>
+        </div>
+        <div class="notification-actions">
+          ${payBtn}
+          <button class="link-btn notif-learn">Learn More</button>
+        </div>
+      </div>
+    `;
+    notificationsList.insertAdjacentHTML("beforeend", html);
+  });
+}
+
+function jobFlags(j) {
+  const copyVal = String(j?.dataCopyDate || j?.dataCopyDateDisplay || "").trim();
+  const assignedVal = j?.assignedAt ? String(j.assignedAt) : "";
+  return {
+    copyReady: !!copyVal,
+    assigned: !!assignedVal,
+    ready: isReadyJob(j)
+  };
+}
+
+function buildNotification(type, j) {
+  const name = projectDisplayName(j);
+  const totalAmount = totalAmountForJob(j);
+  const { pendingAmt } = paymentTotalsForJob(j);
+  if (type === NOTIF_TYPES.COPY_READY) {
+    return {
+      id: `n_${Date.now()}_${j.id}_${type}`,
+      jobId: j.id,
+      type,
+      title: "Data Copy Completed",
+      message: `Today, your project ${name} has been successfully copied and is ready for editing.`,
+      totalAmount,
+      dueAmount: pendingAmt,
+      showPay: false,
+      createdAt: Date.now()
+    };
+  }
+  if (type === NOTIF_TYPES.ASSIGNED) {
+    return {
+      id: `n_${Date.now()}_${j.id}_${type}`,
+      jobId: j.id,
+      type,
+      title: "Project Assigned",
+      message: `Today, your project ${name} has been added to our editing queue and will be ready soon.`,
+      totalAmount,
+      dueAmount: pendingAmt,
+      showPay: false,
+      createdAt: Date.now()
+    };
+  }
+  return {
+    id: `n_${Date.now()}_${j.id}_${type}`,
+    jobId: j.id,
+    type,
+    title: "Project Ready",
+    message: `Today, your project ${name} is ready for delivery.`,
+    totalAmount,
+    dueAmount: pendingAmt,
+    showPay: true,
+    createdAt: Date.now()
+  };
+}
+
+function processJobNotifications(jobsArr) {
+  if (!jobsArr || !jobsArr.length) return;
+  if (!currentUserId && !studioName) return;
+
+  if (!notifState || !notifState.jobs) {
+    loadNotifState();
+  }
+
+  const state = notifState.jobs || {};
+
+  if (!notifState.init) {
+    jobsArr.forEach(j => {
+      if (!j || j.deleteData) return;
+      state[j.id] = jobFlags(j);
+    });
+    notifState.init = true;
+    notifState.jobs = state;
+    saveNotifState();
+    return;
+  }
+
+  jobsArr.forEach(j => {
+    if (!j || j.deleteData) return;
+    const prev = state[j.id] || { copyReady: false, assigned: false, ready: false };
+    const curr = jobFlags(j);
+
+    if (!prev.copyReady && curr.copyReady) {
+      addNotificationItem(buildNotification(NOTIF_TYPES.COPY_READY, j));
+    }
+    if (!prev.assigned && curr.assigned) {
+      addNotificationItem(buildNotification(NOTIF_TYPES.ASSIGNED, j));
+    }
+    if (!prev.ready && curr.ready) {
+      addNotificationItem(buildNotification(NOTIF_TYPES.READY, j));
+    }
+    state[j.id] = curr;
+  });
+
+  notifState.jobs = state;
+  saveNotifState();
+}
 
 function statusOf(j) {
   if (!j) return "Pending";
@@ -279,6 +522,12 @@ onAuthStateChanged(auth, async (user) => {
 
   if (emailEl) emailEl.textContent = user.email || "-";
   currentUserEmail = user.email || "";
+  currentUserId = user.uid || "";
+
+  loadNotifCache();
+  loadNotifState();
+  renderNotifications();
+  updateNotificationPermissionUI();
 
   // ensureCustomerProfile function was removed; skip to avoid CORS/errors
 
@@ -423,6 +672,7 @@ function startJobsListener() {
     if (readyCount) readyCount.textContent = jobs.filter(j => isReadyJob(j)).length;
 
     jobsLoaded = true;
+    processJobNotifications(jobs);
     recalcAndRender();
   };
 
@@ -596,6 +846,28 @@ if (openChatBtn) {
     window.location.href =
       `/customer/chat/customer-chet.html?studio=${encodeURIComponent(studioName)}`;
   };
+}
+
+if (enableNotificationsBtn) {
+  enableNotificationsBtn.onclick = requestNotificationsPermission;
+}
+
+if (notificationsList) {
+  notificationsList.addEventListener("click", (e) => {
+    const payBtn = e.target.closest(".notif-pay");
+    if (payBtn) {
+      const jobId = payBtn.getAttribute("data-job");
+      const due = Number(payBtn.getAttribute("data-due") || "0");
+      if (jobId && due > 0) {
+        openPayModal(due, jobId);
+      }
+      return;
+    }
+    const learnBtn = e.target.closest(".notif-learn");
+    if (learnBtn) {
+      openLoginPage();
+    }
+  });
 }
 
 document.querySelectorAll(".clickable").forEach(c => {
