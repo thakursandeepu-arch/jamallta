@@ -209,9 +209,9 @@ async function startPayment(amount, jobId) {
     const order = await callPaymentHttp("createRazorpayOrderHttp", { amount, jobId, studioName });
     const isMobile = isMobileDevice();
     const upiFlow = isMobile ? "intent" : "collect";
-    // Desktop par UPI (VPA/phone) avoid karein; mobile par UPI allow rahe.
+    // UPI ko sab jagah allow rakho; agar dashboard me UPI enabled hai to option dikhega.
     const allowMethods = {
-      upi: isMobile,
+      upi: true,
       card: true,
       netbanking: true,
       wallet: true,
@@ -233,6 +233,18 @@ async function startPayment(amount, jobId) {
       },
       theme: { color: "#2f89ff" },
       method: allowMethods,
+      config: {
+        display: {
+          blocks: {
+            upi: {
+              name: "UPI",
+              instruments: [{ method: "upi" }]
+            }
+          },
+          sequence: ["block.upi"],
+          preferences: { show_default_blocks: true }
+        }
+      },
       upi: allowMethods.upi ? { flow: upiFlow } : undefined,
       handler: async (response) => {
         await callPaymentHttp("verifyRazorpayPaymentHttp", {
