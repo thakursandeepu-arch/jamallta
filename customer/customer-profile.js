@@ -207,6 +207,14 @@ async function startPayment(amount, jobId) {
   try {
     const order = await callPaymentHttp("createRazorpayOrderHttp", { amount, jobId, studioName });
     const upiFlow = isMobileDevice() ? "intent" : "collect";
+    const allowMethods = {
+      upi: true,
+      card: true,
+      netbanking: true,
+      wallet: true,
+      emi: false,
+      paylater: false
+    };
 
     const options = {
       key: order.keyId || order.key,
@@ -220,20 +228,8 @@ async function startPayment(amount, jobId) {
         name: studioName || ""
       },
       theme: { color: "#2f89ff" },
-      method: { upi: true, card: false, netbanking: false, wallet: false, emi: false, paylater: false },
-      config: {
-        display: {
-          blocks: {
-            upi: {
-              name: "UPI",
-              instruments: [{ method: "upi" }]
-            }
-          },
-          sequence: ["block.upi"],
-          preferences: { show_default_blocks: false }
-        }
-      },
-      upi: { flow: upiFlow },
+      method: allowMethods,
+      upi: allowMethods.upi ? { flow: upiFlow } : undefined,
       handler: async (response) => {
         await callPaymentHttp("verifyRazorpayPaymentHttp", {
           orderId: response.razorpay_order_id,
