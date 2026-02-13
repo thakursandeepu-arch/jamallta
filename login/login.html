@@ -1,0 +1,108 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login</title>
+  <link rel="stylesheet" href="./assets/login.css">
+</head>
+<body>
+  <a href="/" class="back-home">&larr; Back to Home</a>
+
+  <div class="login-box">
+    <h2>Login</h2>
+
+    <form id="loginForm" autocomplete="on">
+      <div class="input-group">
+        <input id="email" type="text" placeholder="Enter your email or mobile no" autocomplete="username">
+      </div>
+
+      <div class="input-group password-group">
+        <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+        <button type="button" class="toggle-pass" id="togglePass" aria-label="Show password">Show</button>
+      </div>
+
+      <button id="loginBtn" type="submit">
+        <span class="btn-text">Login</span>
+        <span class="btn-loader"></span>
+      </button>
+    </form>
+
+    <div class="links">
+      <span id="forgotBtn">Forgot password?</span>
+        <!-- OTP login removed -->
+      <span id="createBtn">Create account</span>
+    </div>
+
+    <p id="error-message" class="error"></p>
+  </div>
+
+  <div class="page-loader" id="pageLoader">
+    <div class="loader-box">
+      <div class="spinner"></div>
+      <p>Signing you in...</p>
+    </div>
+  </div>
+
+  <div class="modal" id="forgotModal">
+    <div class="modal-box">
+      <h3>Reset Password</h3>
+      <input
+        id="resetEmail"
+        type="text"
+        placeholder="Enter your email or mobile no"
+      >
+
+      <div class="modal-actions">
+        <button id="sendLinkBtn">Send Link</button>
+        <button id="sendOtpBtn" class="hidden">Send OTP</button>
+        <button id="verifyOtpBtn" class="hidden">Verify OTP</button>
+        <button class="cancel" id="closeModal">Back</button>
+      </div>
+
+      <div class="otp-row hidden">
+        <input id="resetOtp" type="text" placeholder="Enter OTP">
+      </div>
+      <div id="resetRecaptcha" class="recaptcha-slot"></div>
+      <p id="resetMsg"></p>
+    </div>
+  </div>
+
+  <div class="modal" id="comingModal">
+    <div class="modal-box">
+      <h3>Coming Soon</h3>
+      <p>Account creation feature will be available soon.</p>
+      <button id="closeComing">Back</button>
+    </div>
+  </div>
+
+  <div class="modal" id="newPassModal">
+    <div class="modal-box">
+      <h3>Create New Password</h3>
+      <form id="newPassForm" autocomplete="on">
+        <input
+          id="newPassInput"
+          type="password"
+          placeholder="New password"
+          autocomplete="new-password"
+        >
+        <input
+          id="confirmPassInput"
+          type="password"
+          placeholder="Confirm new password"
+          autocomplete="new-password"
+        >
+
+        <div class="modal-actions">
+          <button id="saveNewPassBtn" type="submit">Save Password</button>
+          <button class="cancel" id="closeNewPass" type="button">Back</button>
+        </div>
+      </form>
+
+      <p id="newPassMsg"></p>
+    </div>
+  </div>
+
+  <script type="module" src="./assets/login.js"></script>
+</body>
+</html>

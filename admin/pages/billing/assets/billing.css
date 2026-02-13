@@ -1,0 +1,416 @@
+/* ================= RESET ================= */
+*{
+  margin:0;
+  padding:0;
+  box-sizing:border-box;
+  font-family:"Inter","Segoe UI",Arial,sans-serif;
+}
+
+/* ================= BODY ================= */
+body{
+  background:#0a0f1e;
+  color:#f1f4ff;
+  padding:16px;
+}
+
+/* ================= STATS / CARDS ================= */
+.stats{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+
+.stat-card{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  border-radius:16px;
+  padding:14px;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+  border:1px solid #26336a;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+
+.stat-card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 10px 22px rgba(0,0,0,.5);
+}
+
+.stat-card span{
+  font-size:13px;
+  color:#a9b6ff;
+  font-weight:700;
+}
+
+.stat-card strong{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
+  font-weight:800;
+  color:#ffd86b;
+}
+
+/* ================= SEARCH + ADD JOB ================= */
+.search-section{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:16px;
+}
+
+.search-section input{
+  flex:1;
+  height:44px;
+  padding:0 14px;
+  border-radius:12px;
+  border:1px solid #26336a;
+  background:#0b1224;
+  color:#fff;
+  font-size:14px;
+  font-weight:600;
+}
+
+.search-section input::placeholder{
+  color:#7f8ccf;
+}
+
+.search-section input:focus{
+  outline:none;
+  border-color:#2f89ff;
+  box-shadow:0 0 0 2px rgba(47,137,255,.25);
+}
+
+.search-section .btn{
+  height:44px;
+  padding:0 18px;
+  border-radius:12px;
+  border:none;
+  background:linear-gradient(180deg,#2f89ff,#1d5fd1);
+  color:#fff;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+
+.search-section .btn:hover{
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px rgba(47,137,255,.35);
+}
+
+/* ================= TABLE WRAPPER ================= */
+.table-wrapper{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  padding:14px;
+  border-radius:18px;
+  border:1px solid #26336a;
+  overflow-x:auto;
+}
+
+.clients-wrapper{
+  margin-top:14px;
+}
+
+.clients-header{
+  font-size:14px;
+  font-weight:800;
+  color:#a9b6ff;
+  margin-bottom:10px;
+}
+
+/* ================= TABLE ================= */
+table{
+  width:100%;
+  table-layout:fixed;
+  border-collapse:collapse;
+}
+
+thead th{
+  padding:12px 14px;
+  font-size:12px;
+  font-weight:800;
+  color:#a9b6ff;
+  text-align:left;
+  white-space:nowrap;
+  border-bottom:1px solid #26336a;
+}
+
+tbody td{
+  padding:12px 14px;
+  font-size:13px;
+  color:#e1e7ff;
+  vertical-align:top;
+  border-bottom:1px solid rgba(38,51,106,.6);
+}
+
+tbody tr{
+  cursor:pointer;
+  transition:background .15s ease;
+}
+
+tbody tr:hover{
+  background:rgba(21,30,60,.85);
+}
+
+/* ================= MODAL (COMMON) ================= */
+.modal{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.75);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+}
+
+.hidden{
+  display:none;
+}
+
+.modal-content{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  padding:18px;
+  border-radius:18px;
+  border:1px solid #26336a;
+  width:96%;
+  max-width:760px;
+  max-height:90vh;
+  overflow-y:auto;
+}
+
+.modal-content.small{
+  max-width:420px;
+}
+
+.select-group{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.select-group select{
+  flex:1 1 180px;
+}
+
+/* Add Job form polish */
+#addJobModal .modal-content{
+  background: linear-gradient(180deg, #101a3a, #0b1224);
+  border: 1px solid #26336a;
+  border-radius: 16px;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.45);
+}
+
+#addJobModal h3{
+  margin: 0 0 10px 0;
+  font-weight: 800;
+}
+
+#addJobModal label{
+  font-size: 12px;
+  color: #9fb0ff;
+  font-weight: 700;
+  margin-top: 8px;
+  display: block;
+}
+
+#addJobModal input,
+#addJobModal select{
+  width: 100%;
+  background: #0b1224;
+  border: 1px solid #26336a;
+  color: #e1e7ff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+#addJobModal input:focus,
+#addJobModal select:focus{
+  outline: none;
+  border-color: #2f89ff;
+  box-shadow: 0 0 0 2px rgba(47,137,255,0.2);
+}
+
+#addJobModal .modal-footer{
+  display:flex;
+  gap:8px;
+  justify-content:flex-end;
+}
+.suggest-wrap{
+  position:relative;
+}
+
+.suggestions{
+  position:absolute;
+  top:100%;
+  left:0;
+  right:0;
+  background:#0b1224;
+  border:1px solid #26336a;
+  border-radius:10px;
+  margin-top:6px;
+  max-height:220px;
+  overflow:auto;
+  z-index:20;
+  box-shadow:0 10px 24px rgba(0,0,0,.45);
+}
+
+.suggestions .item{
+  padding:10px 12px;
+  cursor:pointer;
+  color:#e1e7ff;
+  font-size:12px;
+  font-weight:700;
+}
+
+.suggestions .item.create{
+  color:#ffd86b;
+}
+
+.suggestions .item:hover{
+  background:#121c3e;
+}
+
+/* ================= MODAL GRID ================= */
+.modal-grid{
+  display:grid;
+  grid-template-columns:1.3fr 1fr;
+  gap:16px;
+  font-size:13px;
+}
+
+/* ================= INFO / EDIT BOX ================= */
+.info-box,
+.edit-box{
+  background:#0b1224;
+  border:1px solid #26336a;
+  border-radius:14px;
+  padding:14px;
+}
+
+.info-box div{
+  margin-bottom:6px;
+  line-height:1.4;
+}
+
+.edit-box label{
+  font-size:12px;
+  color:#a9b6ff;
+  font-weight:700;
+  margin-top:10px;
+  display:block;
+}
+
+.edit-box input{
+  width:100%;
+  padding:8px 10px;
+  margin-top:4px;
+  background:#0f1734;
+  border:1px solid #26336a;
+  border-radius:8px;
+  color:#fff;
+}
+
+/* ================= ITEMS TABLE ================= */
+.items-title{
+  margin:16px 0 8px;
+  font-size:14px;
+  font-weight:800;
+  color:#a9b6ff;
+}
+
+.items-table{
+  width:100%;
+  border-collapse:collapse;
+}
+
+.items-table th{
+  padding:10px;
+  font-size:12px;
+  color:#a9b6ff;
+  text-align:left;
+  border-bottom:1px solid #26336a;
+}
+
+.items-table td{
+  padding:10px;
+  font-size:13px;
+  color:#e1e7ff;
+  border-bottom:1px solid rgba(38,51,106,.6);
+}
+
+/* ================= MODAL FOOTER ================= */
+.modal-footer{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  margin-top:16px;
+}
+
+/* ================= BUTTONS ================= */
+.btn{
+  padding:8px 14px;
+  border-radius:10px;
+  border:none;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.btn-save{
+  background:#2f89ff;
+  color:#fff;
+}
+
+.btn-close{
+  background:#26336a;
+  color:#f1f4ff;
+}
+
+/* ================= MOBILE ================= */
+@media(max-width:768px){
+  .stats{
+    grid-template-columns:1fr;
+  }
+
+  .search-section{
+    flex-direction:column;
+  }
+
+  .search-section .btn{
+    width:100%;
+  }
+
+  .modal-grid{
+    grid-template-columns:1fr;
+  }
+
+  table thead{
+    display:none;
+  }
+
+  tbody tr{
+    display:block;
+    padding:14px;
+    margin-bottom:14px;
+    background:linear-gradient(180deg,#0f1734,#0b1224);
+    border-radius:16px;
+    border:1px solid #26336a;
+  }
+
+  tbody td{
+    display:flex;
+    justify-content:space-between;
+    padding:6px 0;
+    border:none;
+  }
+
+  tbody td::before{
+    content:attr(data-label);
+    font-weight:800;
+    color:#9fb0ff;
+  }
+}

@@ -1,0 +1,310 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Team Management - Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="team.css" rel="stylesheet" />
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div class="page-actions">
+        <button class="btn primary" id="openAdd">Add New Team Member</button>
+        <button class="btn ghost" id="btnSyncAuth">Sync Auth Users</button>
+      </div>
+    </header>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Attendance</div>
+          <div class="panel-meta" id="attDate">Loading...</div>
+        </div>
+        <div class="panel-tools">
+          <input class="input" id="attFilterDate" type="date" />
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card"><label>Present</label><div id="attPresent">0</div></div>
+        <div class="stat-card"><label>Absent</label><div id="attAbsent">0</div></div>
+        <div class="stat-card"><label>Leave</label><div id="attLeave">0</div></div>
+        <div class="stat-card"><label>Total</label><div id="attTotal">0</div></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Leave Requests</div>
+          <div class="panel-meta" id="leaveMeta">0 pending</div>
+        </div>
+      </div>
+      <table class="jobs-table">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Days</th>
+            <th>Reason</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="leaveRequestsBody">
+          <tr>
+            <td colspan="7" class="table-empty">Loading leave requests...</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Team Members</div>
+          <div class="panel-meta" id="teamCount">0 members</div>
+        </div>
+        <div class="panel-tools">
+          <input class="input" id="teamSearch" placeholder="Search name, email, role or dept" />
+        </div>
+      </div>
+      <div id="teamList">
+        <div class="empty-state">Loading team members...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-bg" id="modalBg" aria-hidden="true">
+    <div class="modal fullscreen" role="dialog" aria-modal="true">
+      <div class="modal-inner">
+        <div class="modal-top">
+          <h3 id="modalTitle">Add New Team Member</h3>
+          <div class="modal-actions">
+            <button class="btn primary" id="saveBtn">Save</button>
+            <button class="btn danger" id="deleteBtn" style="display:none">Delete</button>
+            <button class="btn ghost" id="closeBtn">Close</button>
+          </div>
+        </div>
+
+        <!-- EMPLOYEE BASIC INFO -->
+        <div class="form-grid">
+          <div class="form-group">
+            <div class="form-label">Full Name *</div>
+            <input class="input" id="fName" placeholder="Enter full name" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Email *</div>
+            <input class="input" id="fEmail" placeholder="Enter email address" type="email" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Role *</div>
+            <input class="input" id="fRole" placeholder="Video Editor, Designer, Developer" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Department</div>
+            <input class="input" id="fDepartment" placeholder="Production, Editing, Design" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Phone</div>
+            <input class="input" id="fPhone" placeholder="Phone number" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">UPI ID</div>
+            <input class="input" id="fUpiId" placeholder="employee@upi" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Salary (Monthly)</div>
+            <input class="input" id="fSalary" placeholder="Salary amount" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Bank Name</div>
+            <input class="input" id="fBankName" placeholder="Bank name" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Payable Salary (This Month)</div>
+            <input class="input" id="fPayableSalary" placeholder="Auto calculated" readonly />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Account Number</div>
+            <input class="input" id="fAccountNumber" placeholder="Account number" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Employee ID</div>
+            <input class="input" id="fEmployeeId" placeholder="Auto generated" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">IFSC Code</div>
+            <input class="input" id="fIfsc" placeholder="IFSC code" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Current Work</div>
+            <input class="input" id="fCurrent" placeholder="Current project or work" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Joining Date *</div>
+            <input class="input" id="fJoinDate" type="date" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Experience</div>
+            <input class="input" id="fExp" placeholder="Auto calculated" readonly />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Skills</div>
+            <input class="input" id="fSkills" placeholder="Skills (comma separated)" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Shift Start</div>
+            <input class="input" id="fShiftStart" type="time" />
+          </div>
+          <div class="form-group">
+            <div class="form-label">Shift End</div>
+            <input class="input" id="fShiftEnd" type="time" />
+          </div>
+          <div id="msg" class="msg"></div>
+        </div>
+
+        <!-- Overview removed -->
+
+        <div class="section split">
+          <div>
+            <div class="section-title">Attendance Summary</div>
+            <div class="stats-grid mini">
+              <div class="stat-card"><label>Present (Month)</label><div id="aPresent">0</div></div>
+              <div class="stat-card"><label>Absent (Month)</label><div id="aAbsent">0</div></div>
+              <div class="stat-card"><label>Leave (Month)</label><div id="aLeave">0</div></div>
+            </div>
+            <div class="att-profile-tools">
+              <input class="input" id="profileAttDate" type="date" />
+              <input class="input" id="profileAttTime" type="time" />
+              <select class="input" id="profileAttStatus">
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="leave">Leave</option>
+              </select>
+              <button class="btn ghost" id="profileAttMark">Mark Attendance</button>
+            </div>
+            <div class="att-profile-tools punch-tools">
+              <button class="btn ghost" id="profilePunchIn">Punch In</button>
+              <button class="btn ghost" id="profilePunchOut">Punch Out</button>
+              <div class="punch-meta" id="profilePunchInfo">Punch In: --:-- • Punch Out: --:--</div>
+            </div>
+            <div class="att-monthly">
+              <div class="section-title">Monthly Attendance Details</div>
+              <div class="jobs-tools">
+                <input class="input" id="attMonthFilter" type="month" />
+              </div>
+              <table class="jobs-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Punch In</th>
+                    <th>Punch Out</th>
+                    <th>Worked</th>
+                    <th>Earnings (Rs)</th>
+                  </tr>
+                </thead>
+                <tbody id="attMonthBody">
+                  <tr>
+                    <td colspan="6" class="table-empty">No attendance records</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="section">
+              <div class="section-title">Salary Payment</div>
+              <div class="pay-grid">
+                <input class="input" id="payMonth" type="month" />
+                <input class="input" id="payAmount" placeholder="Amount (Rs)" />
+                <select class="input" id="payMethod">
+                  <option value="upi">UPI</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                  <option value="manual">Manual</option>
+                  <option value="upi_scan">UPI Scan</option>
+                </select>
+                <input class="input" id="payTxn" placeholder="Txn/UTR ID (optional)" />
+                <input class="input" id="payPaidAmount" placeholder="Paid Amount (Rs)" />
+                <input class="input" id="payPendingAmount" placeholder="Pending Amount (Rs)" readonly />
+                <input class="input" id="payOverpaidAmount" placeholder="Overpaid (Rs)" readonly />
+              </div>
+              <div class="pay-actions">
+                <button class="btn primary" id="btnGenQr">Generate QR</button>
+                <button class="btn ghost" id="btnOpenUpi">Open UPI</button>
+                <button class="btn danger" id="btnMarkPaid">Mark Paid</button>
+                <button class="btn ghost" id="btnMarkPending">Mark Pending</button>
+              </div>
+              <div class="pay-status" id="payStatus">Status: --</div>
+              <div class="qr-box">
+                <img id="payQr" alt="UPI QR" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">Work Summary (This Month)</div>
+            <div class="stats-grid mini">
+              <div class="stat-card"><label>Work Amount (Rs)</label><div id="mWork">0</div></div>
+              <div class="stat-card"><label>Payable Salary (Rs)</label><div id="mPayableSalary">0</div></div>
+              <div class="stat-card"><label>Active Projects</label><div id="mActive">0</div></div>
+              <div class="stat-card"><label>Pending (10+ days)</label><div id="mPending">0</div></div>
+              <div class="stat-card"><label>Total Jobs (Range)</label><div id="mTotalJobs">0</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notes removed -->
+
+        <hr class="divider" />
+        <h4 class="section-title">Assigned Projects</h4>
+        <div class="jobs-tools">
+          <input class="input" id="jobsSearch" placeholder="Search jobs by no / studio / project" />
+          <select class="input" id="chartRange">
+            <option value="month">This Month (1 - End)</option>
+            <option value="year">This Year</option>
+            <option value="lifetime">Lifetime</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div class="chart-custom" id="chartCustom">
+            <input class="input" id="chartFrom" type="date" />
+            <span>to</span>
+            <input class="input" id="chartTo" type="date" />
+            <button class="btn ghost" id="chartApply">Apply</button>
+          </div>
+        </div>
+        <div class="chart-box">
+          <canvas id="jobsLineChart"></canvas>
+        </div>
+        <table id="empJobsTable" class="jobs-table">
+          <thead>
+            <tr>
+              <th>Job No</th>
+              <th>Studio</th>
+              <th>Project</th>
+              <th>Total</th>
+              <th>Advance</th>
+              <th>Pending</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="empJobsBody">
+            <tr>
+              <td colspan="7" class="table-empty">No projects loaded</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Operation successful</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="team.js" defer></script>
+</body>
+</html>

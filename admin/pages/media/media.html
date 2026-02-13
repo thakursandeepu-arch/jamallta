@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Media Manager | Jamallta Films</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="media.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <div>
+        <h1>Media Manager</h1>
+        <p>Upload photos or videos to show on the front website portfolio.</p>
+      </div>
+      <div class="status" id="statusText">Ready</div>
+    </header>
+
+    <section class="panel">
+      <h2>Upload Media</h2>
+      <form id="uploadForm" class="form-grid">
+        <label class="field">
+          <span>Title</span>
+          <input id="mediaTitle" type="text" maxlength="80" placeholder="e.g. Rajat & Simran Wedding Film" required />
+        </label>
+
+        <label class="field">
+          <span>Description</span>
+          <textarea id="mediaDesc" rows="3" maxlength="240" placeholder="Short description for the portfolio card"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Content Type</span>
+          <select id="mediaType" required>
+            <option value="photo">Photo</option>
+            <option value="video">Video (16:9)</option>
+            <option value="reel">Reel (9:16)</option>
+          </select>
+          <small>Choose how this item should appear on the website.</small>
+        </label>
+
+        <label class="field">
+          <span>Placement</span>
+          <select id="mediaPlacement" required>
+            <option value="portfolio">Home > Portfolio</option>
+            <option value="featured">Home > Featured Banner</option>
+          </select>
+          <small>Select where this media will show.</small>
+        </label>
+
+        <label class="field">
+          <span>File (Image or Video)</span>
+          <input id="mediaFile" type="file" accept="image/*,video/*" required />
+          <small id="fileInfo">No file selected</small>
+          <small id="sizeHint">Recommended sizes: Photo 1920x1080, Video 1920x1080, Reel 1080x1920</small>
+        </label>
+
+        <div class="actions">
+          <button type="button" class="btn ghost" id="openEditor">Edit Photo (Local)</button>
+        </div>
+
+        <label class="field checkbox">
+          <span>Publish on Website (SEO)</span>
+          <input id="mediaPublic" type="checkbox" checked />
+          <small>If unchecked, this item will be hidden from the front website and Google.</small>
+        </label>
+
+        <label class="field checkbox">
+          <span>Auto-fix Image Size (Photo only)</span>
+          <input id="autoFixSize" type="checkbox" checked />
+          <small>We will auto-crop to the required size for photos. Videos must be correct size.</small>
+        </label>
+
+        <label class="field checkbox">
+          <span>Pin to Top (Featured / First)</span>
+          <input id="mediaPinned" type="checkbox" />
+          <small>Pinned items show first in their section.</small>
+        </label>
+
+        <div class="progress">
+          <div class="progress-bar" id="uploadBar"></div>
+          <span class="progress-text" id="uploadPct">0%</span>
+        </div>
+
+        <div class="actions">
+          <button type="submit" class="btn primary">Upload</button>
+          <button type="reset" class="btn ghost">Clear</button>
+        </div>
+        <div class="hint" id="uploadHint"></div>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="list-header">
+        <h2>Published Media</h2>
+        <span class="count" id="mediaCount">0</span>
+      </div>
+      <div id="mediaList" class="media-list"></div>
+    </section>
+  </div>
+
+  <script type="module" src="media.js"></script>
+
+  <!-- Local Photo Editor Modal -->
+  <div class="editor-backdrop" id="editorBackdrop" aria-hidden="true">
+    <div class="editor-modal">
+      <div class="editor-header">
+        <div>
+          <h3>Local Photo Editor</h3>
+          <p>Free in-browser edit. No API cost.</p>
+        </div>
+        <button class="btn ghost" id="closeEditor">Close</button>
+      </div>
+
+      <div class="editor-body">
+        <div class="editor-canvas">
+          <canvas id="editorCanvas" width="960" height="540"></canvas>
+        </div>
+
+        <div class="editor-controls">
+          <div class="control">
+            <label>Brightness</label>
+            <input type="range" id="fltBrightness" min="50" max="150" value="100" />
+          </div>
+          <div class="control">
+            <label>Contrast</label>
+            <input type="range" id="fltContrast" min="50" max="150" value="100" />
+          </div>
+          <div class="control">
+            <label>Saturation</label>
+            <input type="range" id="fltSaturation" min="0" max="200" value="100" />
+          </div>
+          <div class="control">
+            <label>Warmth</label>
+            <input type="range" id="fltWarmth" min="0" max="100" value="0" />
+          </div>
+
+          <div class="control">
+            <label>LUT (.cube)</label>
+            <input type="file" id="lutFile" accept=".cube" />
+            <small id="lutInfo">No LUT selected</small>
+          </div>
+          <div class="control">
+            <label>LUT Intensity (30–70%)</label>
+            <input type="range" id="lutIntensity" min="30" max="70" value="50" />
+          </div>
+
+          <div class="control">
+            <label>Skin Smoothing</label>
+            <input type="range" id="fltSmoothing" min="0" max="100" value="0" />
+          </div>
+          <div class="control">
+            <label>Sharpen</label>
+            <input type="range" id="fltSharpen" min="0" max="100" value="0" />
+          </div>
+          <div class="control">
+            <label>Subject Light</label>
+            <input type="range" id="fltSubjectLight" min="-50" max="50" value="0" />
+          </div>
+          <div class="control">
+            <label>Background Light</label>
+            <input type="range" id="fltBackgroundLight" min="-50" max="50" value="0" />
+          </div>
+          <div class="control">
+            <label>Focus X</label>
+            <input type="range" id="focusX" min="-50" max="50" value="0" />
+          </div>
+          <div class="control">
+            <label>Focus Y</label>
+            <input type="range" id="focusY" min="-50" max="50" value="0" />
+          </div>
+
+          <div class="control">
+            <label>Select Color (Target)</label>
+            <input type="color" id="targetColor" value="#d2a07c" />
+          </div>
+          <div class="control">
+            <label>Color Tolerance</label>
+            <input type="range" id="colorTolerance" min="0" max="100" value="25" />
+          </div>
+          <div class="control">
+            <label>Color Adjust (Saturation)</label>
+            <input type="range" id="colorSaturation" min="-50" max="50" value="0" />
+          </div>
+          <div class="control">
+            <label>Color Adjust (Lightness)</label>
+            <input type="range" id="colorLightness" min="-50" max="50" value="0" />
+          </div>
+
+          <div class="control">
+            <label>Zoom</label>
+            <input type="range" id="zoomLevel" min="100" max="250" value="100" />
+          </div>
+
+          <div class="control">
+            <label>Skin Brush (Mask)</label>
+            <div class="editor-actions">
+              <button class="btn" id="brushOn" type="button">Brush On</button>
+              <button class="btn ghost" id="brushOff" type="button">Brush Erase</button>
+              <button class="btn ghost" id="clearMask" type="button">Clear Mask</button>
+            </div>
+            <small>Use brush to select only skin area for smoothing/color changes.</small>
+          </div>
+
+          <div class="control">
+            <label>Crop X</label>
+            <input type="range" id="cropX" min="-50" max="50" value="0" />
+          </div>
+          <div class="control">
+            <label>Crop Y</label>
+            <input type="range" id="cropY" min="-50" max="50" value="0" />
+          </div>
+
+          <div class="editor-actions">
+            <button class="btn" id="presetCinematic" type="button">Cinematic</button>
+            <button class="btn" id="presetWarm" type="button">Warm</button>
+            <button class="btn" id="presetCrisp" type="button">Crisp</button>
+            <button class="btn ghost" id="resetEdits" type="button">Reset</button>
+            <button class="btn primary" id="applyEdits" type="button">Apply & Use</button>
+          </div>
+          <div class="hint" id="editorHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

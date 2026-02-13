@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Jamallta Films – Billing</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./assets/billing.css" />
+</head>
+<body>
+
+<!-- ===== STATS ===== -->
+<section class="stats">
+  <div class="stat-card"><span>Total Jobs</span><strong id="totalJobs">0</strong></div>
+  <div class="stat-card"><span>Total Revenue</span><strong id="totalRevenue">₹0</strong></div>
+  <div class="stat-card"><span>Pending Balance</span><strong id="pendingBalance">₹0</strong></div>
+  <div class="stat-card" id="totalClientsCard"><span>Total Clients</span><strong id="totalClients">0</strong></div>
+</section>
+
+<!-- ===== SEARCH + ADD JOB ===== -->
+<section class="search-section">
+  <input id="searchInput" placeholder="Search Job No, Studio, Project, Editor..." />
+  <button class="btn btn-save" onclick="openAddJob()">+ Add Job</button>
+</section>
+
+<!-- ===== TABLE ===== -->
+<section class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>Job No</th>
+        <th>System No</th>
+        <th>Drive</th>
+        <th>Studio</th>
+        <th>Project</th>
+        <th>Editor</th>
+        <th>Ready</th>
+        <th>Deliver</th>
+      </tr>
+    </thead>
+    <tbody id="jobsBody"></tbody>
+  </table>
+</section>
+
+<!-- ===== CLIENTS LIST ===== -->
+<section class="table-wrapper clients-wrapper hidden" id="clientsWrapper">
+  <div class="clients-header">Total Clients List</div>
+  <table>
+    <thead>
+      <tr>
+        <th>Client Name</th>
+        <th>Jobs</th>
+      </tr>
+    </thead>
+    <tbody id="clientsBody"></tbody>
+  </table>
+</section>
+
+<!-- ===== EXISTING JOB MODAL ===== -->
+<div id="jobModal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Job Details</h3>
+    <div class="modal-grid">
+      <div class="info-box" id="jobInfo"></div>
+      <div class="edit-box">
+        <label>Project Name</label>
+        <input id="editProject" />
+        <label>Ready Date</label>
+        <input type="date" id="editReady" />
+        <label>Deliver Date</label>
+        <input type="date" id="editDeliver" />
+      </div>
+    </div>
+
+    <h4 class="items-title">Items Added</h4>
+    <table class="items-table">
+      <thead>
+        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+
+    <div class="modal-footer">
+      <button class="btn btn-close" onclick="closeModal()">Close</button>
+      <button class="btn btn-save" id="saveJobBtn">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ADD JOB MODAL (NEW – FIX) ===== -->
+<div id="addJobModal" class="modal hidden">
+  <div class="modal-content small">
+    <h3>Add New Job</h3>
+
+    <div class="edit-box">
+      <label>Job No</label>
+      <div class="select-group">
+        <select id="newJobNo"></select>
+      </div>
+
+      <label>Studio Name</label>
+      <div class="suggest-wrap">
+        <input id="newStudio" autocomplete="off" placeholder="Start typing studio name…" />
+        <div class="suggestions" id="studioSuggestions" style="display:none;"></div>
+      </div>
+
+      <label>Project Name</label>
+      <input id="newProject" />
+
+      <label>Drive</label>
+      <input id="newDrive" placeholder="F" />
+
+      <label>System No</label>
+      <input id="newSystem" placeholder="C-3" />
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-close" onclick="closeAddJob()">Cancel</button>
+      <button class="btn btn-save" onclick="saveNewJob()">Create Job</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./assets/billing.js"></script>
+</body>
+</html>

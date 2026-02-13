@@ -1,0 +1,13 @@
+node_modules/
+**/node_modules/
+.firebase/
+.git/
+.git_old/
+.gitdata/
+.DS_Store
+Thumbs.db
+deploy.log
+npm-debug.log*
+package-lock.json
+customer/functions/node_modules/
+customer/functions/package-lock.json

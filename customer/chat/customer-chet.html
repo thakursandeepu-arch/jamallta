@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="customer-chet.css">
+</head>
+<body>
+
+<!-- ===== TOP BAR ===== -->
+<header class="topbar">
+  <button id="backChatBtn" class="icon-btn">←</button>
+  <div class="title-wrap">
+    <div class="title">Jamallta Films</div>
+    <div class="subtitle">Online</div>
+  </div>
+  <button id="homeBtn" class="icon-btn">🏠</button>
+</header>
+
+<!-- ===== CHAT ===== -->
+<main class="chat-area">
+  <div id="messages" class="messages"></div>
+</main>
+
+<!-- ===== INPUT ===== -->
+<footer class="input-bar">
+  <label for="fileInput" class="attach-btn">📎</label>
+  <input type="file" id="fileInput"
+    accept="image/*,video/*,.pdf,.zip,.rar,.doc,.docx,.xls,.xlsx"
+    hidden />
+
+  <input id="msgInput" placeholder="Type a message…" />
+  <button id="sendBtn" class="send-btn">➤</button>
+</footer>
+
+<script type="module" src="customer-chet.js"></script>
+</body>
+</html>

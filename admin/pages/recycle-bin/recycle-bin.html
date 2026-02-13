@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Recycle Bin - Jaamalta Films</title>
+<link href="./assets/recycle-bin.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="recycle-bin-container">
+<div class="page-header">
+  <div class="title-block">
+    <h1 class="page-title">Recycle Bin</h1>
+    <div class="page-subtitle">Deleted items stay here until you restore or delete permanently.</div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-secondary" id="btnRefresh">Refresh</button>
+    <button class="btn btn-danger" id="btnEmptyBin">Empty Recycle Bin</button>
+  </div>
+</div>
+<div class="stats-cards">
+<div class="stat-card">
+<div class="stat-icon">📁</div>
+<div class="stat-value" id="totalItems">0</div>
+<div class="stat-label">Total Items</div>
+</div>
+</div>
+<div class="filters">
+<select class="filter-select" id="filterType">
+<option value="all">All File Types</option>
+<option value="job">Jobs</option>
+<option value="client">Clients</option>
+<option value="payment">Payments</option>
+</select>
+<select class="filter-select" id="filterDate">
+<option value="all">Any Time</option>
+<option value="today">Today</option>
+<option value="week">This Week</option>
+<option value="month">This Month</option>
+</select>
+<input class="search-box" id="searchBox" placeholder="Search deleted items..." type="text"/>
+</div>
+<div class="items-container">
+<div class="items-header">
+<div class="header-checkbox">
+<input id="selectAll" type="checkbox"/>
+</div>
+<div class="header-name">Name</div>
+<div class="header-type">Type</div>
+<div class="header-date">Deleted Date</div>
+<div class="header-actions">Actions</div>
+</div>
+<div class="items-list" id="itemsList">
+<!-- Items will be loaded from Firebase -->
+</div>
+</div>
+<div class="bulk-actions">
+<button class="btn btn-primary" id="btnRestoreSelected">↩️ Restore Selected</button>
+<button class="btn btn-danger" id="btnDeleteSelected">❌ Delete Selected Permanently</button>
+</div>
+</div>
+<script defer="defer" src="./assets/recycle-bin.js" type="module"></script>
+</body>
+</html>

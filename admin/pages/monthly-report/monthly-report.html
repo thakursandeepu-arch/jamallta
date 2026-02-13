@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Monthly Report — Jamallta Films</title>
+<link href="styles.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="app">
+<!-- TOP BAR (screen only) -->
+<header class="topbar no-print">
+<div class="brand"></div>
+<div class="controls">
+<input id="monthPicker" type="month"/>
+<button class="btn" id="btnLoad">Load</button>
+<button class="btn ghost" id="btnCSV">Export CSV</button>
+<button class="btn ghost" id="btnPrint">Print A4</button>
+</div>
+</header>
+<!-- PRINT TITLE (only visible in print) -->
+<div class="print-title only-print">Monthly Report — Jamallta Films</div>
+<!-- Chart card (chart moved above summary / table) -->
+<section class="chart-card">
+<div class="chart-title">Monthly Progress (Items Ready %)</div>
+<canvas height="120" id="progressChart"></canvas>
+</section>
+<!-- KPI row (hidden in print) -->
+<section class="summary no-print">
+<div class="summary-item"><label>Projects</label><div id="k_projects">0</div></div>
+<div class="summary-item"><label>Items Ready</label><div id="k_ready">0</div></div>
+<div class="summary-item"><label>Total</label><div id="k_amount">₹0</div></div>
+<div class="summary-item"><label>Paid</label><div id="k_payments">₹0</div></div>
+<div class="summary-item"><label>Balance</label><div id="k_balance">₹0</div></div>
+</section>
+<!-- Table -->
+<section class="table-wrap">
+<table class="grid" id="reportTable">
+<thead>
+<tr>
+<th>Job No</th>
+<th>Studio Name</th>
+<th>Project Name</th>
+<th>Data Copy</th>
+<th>System No</th>
+<th>Drive</th>
+<th>Add Item</th>
+<th>Editor Name</th>
+<th>Total Amount</th>
+<th>Data Ready Date</th>
+<th>Data Deliver Date</th>
+<th>Current Balance</th>
+</tr>
+</thead>
+<tbody id="tableBody">
+<tr><td class="empty" colspan="9">No data. Select month and click Load.</td></tr>
+</tbody>
+</table>
+</section>
+<!-- Footer (screen only) -->
+<footer class="footer no-print">
+<div class="left">Jamallta Films</div>
+<div class="center" id="printedAt"></div>
+<div class="right">Page <span class="pageNumber">1</span></div>
+</footer>
+</div>
+<script defer="defer" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script defer="defer" src="script.js" type="module"></script>
+</body>
+</html>
+

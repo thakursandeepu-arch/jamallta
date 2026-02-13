@@ -1,0 +1,207 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Customer Dashboard — Jaamalta Films</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
+  <!-- Razorpay -->
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+  <!-- CSS -->
+  <style>
+    body{margin:0;background:#0a0f1e;color:#f1f4ff;font-family:"Inter","Segoe UI",Arial,sans-serif;}
+    .page{padding:14px;max-width:1100px;margin:0 auto;}
+    .topbar{display:grid;grid-template-columns:1fr;gap:10px;align-items:center;background:#0f1734;border:1px solid #26336a;border-radius:14px;padding:12px;}
+    .card{background:#0f1734;border:1px solid #26336a;border-radius:14px;padding:12px;margin-top:12px;}
+    .stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px;}
+    .stat-card{border:1px solid #26336a;border-radius:12px;padding:10px;text-align:center;}
+    .content-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px;}
+    .project{background:#0b1224;border:1px solid #26336a;border-radius:12px;padding:10px;margin-bottom:10px;}
+    .project-footer{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12px;color:#a9b6ff;}
+    .btn{padding:8px 14px;border-radius:999px;border:1px solid #26336a;background:#0b1224;color:#cfe2ff;font-weight:700;}
+    .btn-primary{background:#1f6f4a;color:#7cffb2;border:0;}
+    .actions{display:flex;flex-direction:column;gap:8px;}
+    .action-buttons{display:flex;flex-direction:column;gap:8px;}
+    #searchBox{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #26336a;background:#0b1224;color:#fff;}
+    @media (min-width:900px){
+      .topbar{grid-template-columns:1.2fr 1fr 1.4fr;}
+      .content-grid{grid-template-columns:1.4fr 1fr;}
+      .stats{grid-template-columns:repeat(6,1fr);}
+      .actions{flex-direction:row;justify-content:space-between;}
+      .action-buttons{flex-direction:row;flex-wrap:wrap;}
+      .project-footer{flex-direction:row;justify-content:space-between;align-items:center;}
+    }
+  </style>
+  <link rel="stylesheet" href="customer-profile.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="brand">
+        <div>
+          <div class="logo-text" id="brandStudio">Loading...</div>
+        </div>
+      </div>
+
+      <div class="actions" id="balanceSection">
+        <div class="balance">
+          <div class="balance-info">
+            <span class="label">Balance</span>
+            <div class="amount" id="balanceAmount">0.00</div>
+          </div>
+          <button id="balancePayBtn" class="btn btn-primary btn-sm">Pay Now</button>
+        </div>
+        <div class="action-buttons">
+          <button id="topPayBtn" class="btn btn-primary">Pay Now</button>
+          <button id="logoutBtn" class="btn btn-ghost">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="info-grid">
+      <div class="card customer-info" id="profileInfoSection" style="display:none;">
+        <div class="card-title">Personal Information</div>
+        <div class="info-row">
+          <span>Studio</span>
+          <b id="studioName">-</b>
+        </div>
+        <div class="info-row">
+          <span>Email</span>
+          <b id="email">-</b>
+        </div>
+        <div class="info-row">
+          <span>Phone</span>
+          <b id="phone">-</b>
+        </div>
+        <div class="info-row">
+          <span>City</span>
+          <b id="city">-</b>
+        </div>
+      </div>
+      <div class="card quick-note" style="display:none;"></div>
+    </section>
+
+    <section class="stats" id="statsSection">
+      <div class="stat-card clickable active" data-filter="all">
+        <div class="card-title">Total</div>
+        <span id="totalCount">0</span>
+      </div>
+      <div class="stat-card clickable" data-filter="Pending">
+        <div class="card-title">Pending</div>
+        <span id="pendingCount">0</span>
+      </div>
+      <div class="stat-card clickable" data-filter="Processing">
+        <div class="card-title">Processing</div>
+        <span id="processingCount">0</span>
+      </div>
+      <div class="stat-card clickable" data-filter="Ready">
+        <div class="card-title">Ready</div>
+        <span id="readyCount">0</span>
+      </div>
+      <div class="stat-card" data-filter="paid">
+        <div class="card-title">Paid Projects</div>
+        <span id="paidCount">0</span>
+      </div>
+      <div class="stat-card" data-filter="unpaid">
+        <div class="card-title">Unpaid Projects</div>
+        <span id="unpaidCount">0</span>
+      </div>
+    </section>
+
+    <section class="content-grid">
+      <div class="card projects" id="projectsSection">
+        <div class="card-title">Your Projects</div>
+        <input id="searchBox" type="text" placeholder="Search job / item / amount" />
+        <div id="projectsList"></div>
+      </div>
+
+      <div class="card payments" id="paymentsSection">
+        <div class="card-title">Payment History</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th class="right">Amount</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="paymentTable"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <aside class="mobile-sidebar" id="mobileSidebar" aria-hidden="true">
+    <div class="mobile-sidebar-header">
+      <div class="sidebar-avatar">
+        <img src="/favicon.ico" alt="Jamallta Films Logo">
+      </div>
+      <div class="sidebar-title">Jamallta Films</div>
+    </div>
+    <div class="sidebar-section">Menu</div>
+    <nav class="sidebar-nav" id="sidebarNav">
+      <button class="sidebar-item active" data-section="overview">Overview</button>
+      <button class="sidebar-item" data-section="projects">Projects</button>
+      <button class="sidebar-item" data-section="payments">Payments</button>
+      <button class="sidebar-item" data-section="profile">Profile</button>
+    </nav>
+    <div class="sidebar-section" id="sidebarInfoTitle">Your Information</div>
+    <div class="sidebar-info" id="sidebarInfo">
+      <div class="info-row">
+        <span>Studio</span>
+        <b id="sidebarStudio">-</b>
+      </div>
+      <div class="info-row">
+        <span>Email</span>
+        <b id="sidebarEmail">-</b>
+      </div>
+      <div class="info-row">
+        <span>Phone</span>
+        <b id="sidebarPhone">-</b>
+      </div>
+      <div class="info-row">
+        <span>City</span>
+        <b id="sidebarCity">-</b>
+      </div>
+    </div>
+    <div class="sidebar-actions">
+      <button id="sidebarLogoutBtn" class="btn btn-ghost">Logout</button>
+    </div>
+  </aside>
+  <div class="mobile-overlay" id="mobileOverlay" aria-hidden="true"></div>
+
+  <div class="pay-modal" id="payModal" aria-hidden="true">
+    <div class="pay-modal-card">
+      <div class="pay-modal-head">
+        <div>
+          <div class="card-title">Confirm Payment</div>
+          <div class="pay-subtitle" id="paySubtitle">Review amount</div>
+        </div>
+      </div>
+      <div class="pay-modal-body">
+        <label>Amount (Rs.)</label>
+        <input id="payAmountInput" class="input pay-input" type="number" min="1" step="1" />
+        <div class="pay-hint">
+          <span id="payMaxHint">Max: Rs. 0</span>
+          <button class="pay-full-btn" id="payFullBtn" type="button">Pay Full Amount</button>
+        </div>
+      </div>
+      <div class="pay-modal-actions">
+        <button class="btn btn-ghost" id="payCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="payConfirmBtn">Confirm & Pay</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="customer-profile.js?v=20260208a"></script>
+</body>
+</html>

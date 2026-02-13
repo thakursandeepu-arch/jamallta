@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Employee Info &mdash; Jaamalta Films</title>
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="employee-user.css" rel="stylesheet"/>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+</head>
+<body class="page-employee-info">
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon"><i class="fas fa-film"></i></div>
+        <div class="logo-text">Jaamalta Films</div>
+      </div>
+      <div class="user-info">
+        <div class="avatar" id="avatar">U</div>
+        <div class="user-meta">
+          <div id="userName">Loading...</div>
+          <div class="muted" id="userRole">Loading...</div>
+        </div>
+        <div class="user-actions">
+          <button class="btn btn-ghost btn-sm" id="backToPanel">
+            <i class="fas fa-arrow-left"></i> Back
+          </button>
+          <button class="btn btn-ghost btn-sm" id="logoutBtn">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-hero">
+      <div>
+        <h1>Employee Dashboard</h1>
+        <p class="muted">Your profile, attendance, and assigned jobs in one place.</p>
+      </div>
+      <div class="hero-chip">
+        <i class="fas fa-shield-alt"></i>
+        Secure • Live Data
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-user"></i> Your Information</h3>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="refreshInfoBtn">
+            <i class="fas fa-sync-alt"></i> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div class="loading" id="loadingInfo">
+        <i class="fas fa-spinner fa-spin"></i> Loading your information...
+      </div>
+
+      <div class="grid" id="infoFields" style="display:none">
+        <div><label>Full Name</label><input class="input" id="eName" readonly=""/></div>
+        <div><label>Email</label><input class="input" id="eEmail" readonly=""/></div>
+        <div><label>Role</label><input class="input" id="eRole" readonly=""/></div>
+        <div><label>Department</label><input class="input" id="eDepartment" readonly=""/></div>
+        <div><label>Phone</label><input class="input" id="ePhone" readonly=""/></div>
+        <div><label>Salary</label><input class="input" id="eSalary" readonly=""/></div>
+        <div><label>Payable Salary (This Month)</label><input class="input" id="ePayableSalary" readonly=""/></div>
+        <div><label>Employee ID</label><input class="input" id="eEmployeeId" readonly=""/></div>
+        <div><label>Next Leave</label><input class="input" id="eNextLeave" readonly=""/></div>
+        <div><label>Joining Date</label><input class="input" id="eJoiningDate" readonly=""/></div>
+        <div><label>Experience</label><input class="input" id="eExperience" readonly=""/></div>
+        <div><label>Skills</label><input class="input" id="eSkills" readonly=""/></div>
+        <div><label>UPI ID</label><input class="input" id="eUpiId" readonly=""/></div>
+        <div><label>Bank Name</label><input class="input" id="eBankName" readonly=""/></div>
+        <div><label>Account Number</label><input class="input" id="eBankAccount" readonly=""/></div>
+        <div><label>IFSC Code</label><input class="input" id="eBankIfsc" readonly=""/></div>
+        <div><label>Shift Start</label><input class="input" id="eShiftStart" readonly=""/></div>
+        <div><label>Shift End</label><input class="input" id="eShiftEnd" readonly=""/></div>
+      </div>
+
+      <div class="stats-grid" id="attendanceStats" style="display:none">
+        <div class="stat-card"><label>Present (Month)</label><div id="attPresent">0</div></div>
+        <div class="stat-card"><label>Absent (Month)</label><div id="attAbsent">0</div></div>
+        <div class="stat-card"><label>Leave (Month)</label><div id="attLeave">0</div></div>
+      </div>
+
+      <div class="stats-grid" id="paymentStats" style="display:none">
+        <div class="stat-card"><label>Salary (Month)</label><div id="payTotal">0</div></div>
+        <div class="stat-card"><label>Paid</label><div id="payPaid">0</div></div>
+        <div class="stat-card"><label>Pending</label><div id="payPending">0</div></div>
+        <div class="stat-card"><label>Status</label><div id="payStatusText">-</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-plane-departure"></i> Leave Request</h3>
+      </div>
+      <div class="grid">
+        <div>
+          <label>From Date</label>
+          <input class="input" id="leaveFrom" type="date"/>
+        </div>
+        <div>
+          <label>To Date</label>
+          <input class="input" id="leaveTo" type="date"/>
+        </div>
+        <div style="grid-column:1 / -1;">
+          <label>Reason</label>
+          <input class="input" id="leaveReason" placeholder="Reason for leave"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" id="submitLeaveBtn">
+          <i class="fas fa-paper-plane"></i> Submit Request
+        </button>
+        <div class="muted" id="leaveMsg" style="align-self:center;"></div>
+      </div>
+
+      <div class="table-container" style="margin-top:12px;">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th>Days</th>
+              <th>Status</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="leaveTableBody">
+            <tr>
+              <td class="center muted" colspan="5">
+                <i class="fa fa-spinner fa-spin"></i> Loading...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-chart-line"></i> Monthly Overview</h3>
+        <div class="chart-filters" role="group" aria-label="Chart range">
+          <button class="btn btn-ghost btn-sm chart-filter active" data-range="month">Month</button>
+          <button class="btn btn-ghost btn-sm chart-filter" data-range="year">Year</button>
+          <button class="btn btn-ghost btn-sm chart-filter" data-range="lifetime">Lifetime</button>
+          <button class="btn btn-ghost btn-sm chart-filter" data-range="custom">Custom</button>
+        </div>
+      </div>
+      <div class="chart-custom-range" id="customRangeRow" style="display:none">
+        <div class="range-field">
+          <label for="customFrom">From</label>
+          <input class="input" id="customFrom" type="date"/>
+        </div>
+        <div class="range-field">
+          <label for="customTo">To</label>
+          <input class="input" id="customTo" type="date"/>
+        </div>
+        <button class="btn btn-primary btn-sm" id="applyCustomRange">Apply</button>
+      </div>
+      <div class="emp-summary">
+        <div class="mini-card clickable" data-filter="active" role="button" tabindex="0" aria-label="Show active projects">
+          <label>Active Projects</label>
+          <div class="value" id="empActiveCount">0</div>
+        </div>
+        <div class="mini-card clickable" data-filter="pending" role="button" tabindex="0" aria-label="Show pending projects">
+          <label>Pending (10+ days)</label>
+          <div class="value" id="empPendingCount">0</div>
+        </div>
+        <div class="mini-card clickable" data-filter="total" role="button" tabindex="0" aria-label="Show total jobs this month">
+          <label>Total Jobs (Range)</label>
+          <div class="value" id="empTotalCount">0</div>
+        </div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-head">
+          <span class="muted">This Month</span>
+        </div>
+        <canvas id="empJobsChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-tasks"></i> Assigned Projects</h3>
+        <div class="header-buttons">
+          <div class="search-box">
+            <input id="jobsSearchInput" placeholder="Search by Project, Job No, or Studio..." type="text"/>
+            <button class="btn btn-ghost btn-sm" id="clearSearchBtn"><i class="fas fa-times"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Job No</th>
+              <th>Data Copy Date</th>
+              <th>System No</th>
+              <th>Drive</th>
+              <th>Studio Name</th>
+              <th>Project Name</th>
+              <th>Data Ready Date</th>
+              <th>Data Deliver Date</th>
+              <th>Payment</th>
+              <th>Deleted At</th>
+            </tr>
+          </thead>
+          <tbody id="jobsTableBody">
+            <tr>
+              <td class="center muted" colspan="9">
+                <i class="fa fa-spinner fa-spin"></i> Loading...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title"><i class="fas fa-file-invoice"></i> Salary Slip</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select class="input" id="salarySlipMode" style="min-width:160px;">
+            <option value="all">All Months</option>
+            <option value="single">Single Month</option>
+            <option value="range">Month Range</option>
+          </select>
+          <input class="input" id="salaryMonthSingle" type="month" style="min-width:160px;display:none"/>
+          <div id="salaryMonthRange" style="display:none;gap:8px;align-items:center;">
+            <input class="input" id="salaryMonthFrom" type="month" style="min-width:160px"/>
+            <span class="muted">to</span>
+            <input class="input" id="salaryMonthTo" type="month" style="min-width:160px"/>
+          </div>
+          <button class="btn btn-primary btn-sm" id="salarySlipBtn">
+            <i class="fas fa-file-pdf"></i> PDF / Print
+          </button>
+        </div>
+      </div>
+      <div class="muted">Generate your professional salary slip for all months.</div>
+    </div>
+  </div>
+
+  <!-- PROJECT EDITOR MODAL - EMPLOYEE VERSION -->
+  <div class="modal" id="projectEditorModal">
+    <div class="modal-content large-modal">
+      <div class="modal-header">
+        <h3>Edit Project</h3>
+        <button class="close-btn" id="closeEditorModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-section">
+          <h4>Project Details</h4>
+          <div class="grid">
+            <div><label>Project Name</label><input class="input" id="editProjectName" type="text"/></div>
+            <div><label>Job No</label><input class="input" id="editJobNo" readonly type="text"/></div>
+            <div><label>Studio Name</label><input class="input" id="editStudioName" readonly type="text"/></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <h4>Dates</h4>
+          <div class="grid">
+            <div>
+              <label>Data Ready Date</label>
+              <div class="date-row">
+                <input class="input" id="editDataReadyDate" type="date"/>
+                <label class="chip-toggle">
+                  <input id="editDataReadyToday" type="checkbox"/>
+                  <span>Today</span>
+                </label>
+              </div>
+            </div>
+            <div><label>Data Deliver Date</label><input class="input" id="editDataDeliverDate" type="date"/></div>
+          </div>
+        </div>
+        <div class="form-section">
+          <h4>Items &amp; Services</h4>
+          <div class="item-add">
+            <div class="item-select-wrap">
+              <input class="input" id="itemSelectSearch" placeholder="Select Service/Item" autocomplete="off"/>
+              <div class="suggestions" id="itemSuggestions" style="display:none;"></div>
+              <select class="input" id="itemSelect" style="display:none;">
+                <option value="">Select Service/Item</option>
+              </select>
+            </div>
+            <div class="item-value-input">
+              <input class="input" id="itemValue" placeholder="Time (H:MM) or Qty" type="text"/>
+            </div>
+            <button class="btn btn-primary btn-sm" id="addItemBtn">Add Item</button>
+          </div>
+          <div class="items-list" id="itemsList"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" id="cancelEditor">Cancel</button>
+        <button class="btn btn-ghost" id="deleteProjectBtn" style="display:none; margin-right:auto; border-color:var(--error); color:var(--error);">
+          Delete Project
+        </button>
+        <button class="btn btn-primary" id="saveProjectChanges">Save Changes</button>
+      </div>
+    </div>
+  </div>
+  <div class="toast" id="toast">Done</div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script defer src="info.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+/* ================= RESET ================= */
+*{
+  box-sizing:border-box;
+  font-family:"Inter","Segoe UI",Arial,sans-serif;
+}
+
+body{
+  margin:0;
+  background:#0a0f1e;
+  color:#f1f4ff;
+  overflow-x:hidden;
+}
+
+.container{
+  padding:16px;
+  max-width:100%;
+}
+
+/* ================= CARDS ================= */
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:14px;
+  margin-bottom:18px;
+}
+
+.card{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  border-radius:16px;
+  padding:14px;
+  text-align:center;
+  cursor:pointer;
+  user-select:none;
+  border:1px solid #26336a;
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 10px 22px rgba(0,0,0,.5);
+}
+
+.card.active{
+  box-shadow:
+    0 0 0 2px #2f89ff inset,
+    0 12px 26px rgba(0,0,0,.6);
+}
+
+.card-title{
+  font-size:13px;
+  color:#a9b6ff;
+  font-weight:700;
+}
+
+.card span{
+  display:block;
+  margin-top:6px;
+  font-size:18px;
+  font-weight:800;
+  color:#ffd86b;
+}
+
+.card.blue{
+  background:linear-gradient(180deg,#123a6b,#0d2b52);
+}
+
+.card.red{
+  background:linear-gradient(180deg,#5c1515,#3b0f0f);
+}
+
+/* ================= CHART ================= */
+.chart-box{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  padding:14px;
+  border-radius:18px;
+  border:1px solid #26336a;
+  margin-bottom:18px;
+}
+
+.chart-controls{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+
+.chart-controls label{
+  font-size:12px;
+  font-weight:800;
+  color:#a9b6ff;
+}
+
+#chartRange{
+  background:#0b1224;
+  color:#e1e7ff;
+  border:1px solid #26336a;
+  border-radius:10px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.chart-controls #chartMetric{
+  background:#0b1224;
+  color:#e1e7ff;
+  border:1px solid #26336a;
+  border-radius:10px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.chart-controls select:focus{
+  outline:none;
+  border-color:#2f89ff;
+  box-shadow:0 0 0 2px rgba(47,137,255,.25);
+}
+
+.chart-custom{
+  display:none;
+  align-items:center;
+  gap:8px;
+}
+
+.chart-custom input{
+  background:#0b1224;
+  color:#e1e7ff;
+  border:1px solid #26336a;
+  border-radius:10px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+}
+
+.chart-custom span{
+  font-size:12px;
+  color:#a9b6ff;
+  font-weight:700;
+}
+
+.chart-custom button{
+  background:linear-gradient(180deg,#1f6f4a,#144a33);
+  color:#7cffb2;
+  border:none;
+  padding:6px 12px;
+  border-radius:10px;
+  font-size:12px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.chart-box canvas{
+  height:220px!important;
+}
+
+/* ================= TABLE ================= */
+.table-box{
+  background:linear-gradient(180deg,#0f1734,#0b1224);
+  padding:12px;
+  border-radius:18px;
+  border:1px solid #26336a;
+  overflow:auto;
+  max-width:100%;
+}
+
+#search{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid #26336a;
+  margin-bottom:14px;
+  background:#0b1224;
+  color:#fff;
+  font-weight:600;
+}
+
+#search:focus{
+  outline:none;
+  border-color:#2f89ff;
+  box-shadow:0 0 0 2px rgba(47,137,255,.25);
+}
+
+/* ================= JOBS TABLE ================= */
+.jobs-table{
+  width:100%;
+  min-width:0;
+  table-layout:fixed;
+  border-collapse:collapse;
+}
+
+.jobs-table thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:linear-gradient(180deg,#101a3a,#0c1330);
+  padding:8px 8px;
+  font-size:10.5px;
+  font-weight:800;
+  color:#a9b6ff;
+  text-align:left;
+  white-space:normal;
+  border-bottom:1px solid #26336a;
+}
+
+.jobs-table tbody td{
+  padding:8px 8px;
+  font-size:11px;
+  color:#e1e7ff;
+  vertical-align:top;
+  border-bottom:1px solid rgba(38,51,106,.6);
+  word-break:break-word;
+}
+
+.jobs-table tbody tr{
+  transition:background .15s ease;
+}
+
+.jobs-table tbody tr:hover{
+  background:rgba(21,30,60,.85);
+}
+
+.jobs-table tbody tr:nth-child(even){
+  background:rgba(13,20,44,.65);
+}
+
+/* ================= COLUMN WIDTHS ================= */
+.jobs-table th,
+.jobs-table td{ white-space:normal; }
+
+.jobs-table td:nth-child(1),
+.jobs-table td:nth-child(2),
+.jobs-table td:nth-child(3),
+.jobs-table td:nth-child(8),
+.jobs-table td:nth-child(12),
+.jobs-table td:nth-child(13){
+  color:#cfe0ff;
+}
+
+.jobs-table td:nth-child(9),
+.jobs-table td:nth-child(10),
+.jobs-table td:nth-child(11){
+  font-weight:800;
+  color:#ffd86b;
+}
+
+
+/* ================= STATUS BADGES ================= */
+.status{
+  font-size:11px;
+  padding:4px 10px;
+  border-radius:8px;
+  font-weight:800;
+  letter-spacing:.3px;
+}
+
+.status.Pending{ background:#4b3a1f; color:#ffca28; }
+.status.Active{ background:#233a55; color:#6ecbff; }
+.status.Ready{ background:#1f4d3a; color:#4caf50; }
+.status.Delivered{ background:#3a1f1f; color:#ff5c5c; }
+
+/* ================= ACTION BUTTONS ================= */
+.action-btns{
+  display:flex;
+  gap:8px;
+  justify-content:center;
+}
+
+.btn-ready{
+  background:linear-gradient(180deg,#1f6f4a,#144a33);
+  color:#7cffb2;
+  border:none;
+  padding:6px 14px;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.btn-deliver{
+  background:linear-gradient(180deg,#7a1f1f,#3a0f0f);
+  color:#ff9b9b;
+  border:none;
+  padding:6px 14px;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.btn-delete{
+  background:linear-gradient(180deg,#7a1f1f,#3a0f0f);
+  color:#ff9b9b;
+  border:none;
+  padding:6px 10px;
+  border-radius:8px;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+/* ================= MOBILE ================= */
+@media(max-width:768px){
+  .jobs-table{
+    min-width:0;
+  }
+
+  .jobs-table thead{
+    display:none;
+  }
+
+  .jobs-table tbody tr{
+    display:block;
+    padding:14px;
+    margin-bottom:14px;
+    background:linear-gradient(180deg,#0f1734,#0b1224);
+    border-radius:16px;
+    border:1px solid #26336a;
+  }
+
+  .jobs-table td{
+    display:flex;
+    justify-content:space-between;
+    padding:6px 0;
+    font-size:12px;
+    border:none;
+  }
+
+  .jobs-table td::before{
+    content:attr(data-label);
+    font-weight:800;
+    color:#9fb0ff;
+  }
+
+  .jobs-table td:nth-child(5){
+    font-size:14px;
+    color:#ffd86b;
+  }
+}
+

@@ -1,0 +1,48 @@
+:root{
+  --bg:#0a0f1e;
+  --panel:#0b1224;
+  --panel-2:#0f1734;
+  --accent:#2f89ff;
+  --accent2:#1d5fd1;
+  --muted:#a9b6ff;
+  --text:#f1f4ff;
+  --border:#26336a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Inter","Segoe UI",Arial,sans-serif;}
+.container{padding:16px;max-width:1200px;margin:0 auto;}
+.page-header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px;border-radius:14px;border:1px solid var(--border);background:linear-gradient(180deg,var(--panel-2),var(--panel));margin-bottom:14px;}
+.page-title{font-size:20px;font-weight:800;}
+.page-subtitle{font-size:12px;color:var(--muted);}
+.btn{background:linear-gradient(180deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:10px;padding:8px 14px;font-weight:800;cursor:pointer;font-size:12px;}
+.btn.ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;}
+.card{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--border);border-radius:14px;padding:12px;text-align:center;}
+.card-title{font-size:12px;color:var(--muted);font-weight:700;}
+.card span{display:block;margin-top:6px;font-size:18px;font-weight:800;color:#ffd86b;}
+.card.blue{background:linear-gradient(180deg,#123a6b,#0d2b52)}
+.chart-box{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:14px;}
+.chart-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;}
+.chart-controls label{font-size:12px;color:var(--muted);font-weight:700;}
+.chart-controls select,.chart-controls input,.chart-controls button{background:var(--panel);border:1px solid var(--border);border-radius:10px;color:#fff;padding:6px 10px;font-size:12px;font-weight:700;}
+.chart-custom{display:none;align-items:center;gap:8px;}
+.chart-box canvas{height:220px!important;width:100%!important;}
+.panel{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:14px;}
+.panel-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.panel-title{font-size:13px;color:var(--muted);font-weight:800;}
+.panel-actions{display:flex;gap:10px;align-items:center;}
+.panel-actions input, .panel-actions select{background:var(--panel);border:1px solid var(--border);border-radius:10px;color:#fff;padding:6px 10px;font-size:12px;font-weight:700;}
+.data-table{width:100%;border-collapse:collapse;font-size:12px;}
+.data-table th{background:linear-gradient(180deg,#101a3a,#0c1330);padding:10px;color:var(--muted);text-align:left;border-bottom:1px solid var(--border);} 
+.data-table td{padding:10px;border-bottom:1px solid rgba(38,51,106,.6);} 
+.rules-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.rules-grid label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;}
+.rules-grid input{background:var(--panel);border:1px solid var(--border);border-radius:10px;color:#fff;padding:8px 10px;font-size:12px;}
+.modal-bg{position:fixed;inset:0;background:rgba(3,7,18,.85);display:none;align-items:center;justify-content:center;z-index:1000;}
+.modal{background:linear-gradient(180deg,var(--panel-2),var(--panel));border:1px solid var(--border);border-radius:16px;padding:16px;width:560px;max-height:90vh;overflow:auto;}
+.modal-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.form-grid label{font-size:12px;color:var(--muted);font-weight:700;display:block;margin-bottom:4px;}
+.form-grid input, .form-grid select{background:var(--panel);border:1px solid var(--border);border-radius:10px;color:#fff;padding:8px 10px;font-size:12px;}
+.modal-actions{display:flex;justify-content:flex-end;margin-top:12px;}
+@media(max-width:768px){.container{padding:10px}.form-grid{grid-template-columns:1fr}.modal{width:92%}.panel-actions{flex-direction:column;align-items:stretch}}

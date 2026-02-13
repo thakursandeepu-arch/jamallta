@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Employee Panel — Jaamalta Films</title>
+<link href="employee-user.css" rel="stylesheet"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="container">
+<!-- PUNCH-IN GATE -->
+<div class="punch-gate" id="punchInGate">
+  <div class="punch-card">
+    <h2>Punch In Required</h2>
+    <p>Please capture a selfie to start your work session.</p>
+    <div class="punch-preview">
+      <video id="punchVideo" autoplay playsinline></video>
+      <canvas id="punchCanvas" style="display:none;"></canvas>
+      <img id="punchPhoto" alt="Selfie preview" />
+    </div>
+    <div class="punch-actions">
+      <button class="btn btn-ghost" id="punchCapture">Capture Selfie</button>
+      <button class="btn btn-primary" id="punchSubmit" disabled>Submit Punch In</button>
+    </div>
+    <div class="punch-hint" id="punchStatus">Camera permission required.</div>
+  </div>
+</div>
+<!-- HEADER -->
+<div class="header">
+<div class="logo">
+<div class="logo-icon"><i class="fas fa-film"></i></div>
+<div class="logo-text">Jaamalta Films</div>
+</div>
+<div class="user-info">
+<div class="avatar" id="avatar">U</div>
+<div class="user-meta">
+<div id="userName">Loading...</div>
+<div class="muted" id="userRole">Loading...</div>
+</div>
+<div class="user-actions">
+<button class="btn btn-ghost btn-sm" id="logoutBtn">
+<i class="fas fa-sign-out-alt"></i> Logout
+</button>
+</div>
+</div>
+</div>
+
+<div class="notif-panel" id="notifPanel" style="display:none;">
+  <div class="notif-header">
+    <span>Notifications</span>
+    <button class="btn btn-ghost btn-sm" id="notifClose">Close</button>
+  </div>
+  <div class="notif-list" id="notifList">
+    <div class="muted">Loading...</div>
+  </div>
+</div>
+<!-- ASSIGNED PROJECTS -->
+<div class="card">
+<div class="card-header">
+<h3 class="card-title"><i class="fas fa-tasks"></i> Assigned Projects</h3>
+<div class="header-buttons">
+<!-- SEARCH BOX FOR JOBS TABLE -->
+<div class="search-box">
+<input id="jobsSearchInput" placeholder="Search by Project, Job No, or Studio..." type="text"/>
+<button class="btn btn-ghost btn-sm" id="clearSearchBtn">
+<i class="fas fa-times"></i>
+</button>
+</div>
+<div class="next-leave-pill" id="nextLeavePill">
+  <i class="fas fa-calendar-check"></i>
+  <span class="label">Next Holiday:</span>
+  <span class="value" id="nextLeaveDate">Loading...</span>
+</div>
+<button class="btn btn-ghost btn-sm" id="openInfoBtn">
+<i class="fas fa-user"></i> Your Information
+        </button>
+<button class="btn btn-ghost btn-sm" id="assignProjectBtn">
+<i class="fas fa-plus"></i> Assign Project
+        </button>
+<!-- CREATE NEW JOB BUTTON -->
+<button class="btn btn-ghost btn-sm" id="createJobBtn" title="Create New Job">
+<i class="fas fa-file-circle-plus"></i> Create New Job
+        </button>
+<button class="btn btn-ghost btn-sm" id="refreshBtn">
+<i class="fas fa-sync-alt"></i> Refresh
+        </button>
+<button class="btn btn-ghost btn-sm" id="punchInBtn">
+<i class="fas fa-camera"></i> Punch In
+        </button>
+<button class="btn btn-ghost btn-sm" id="punchOutBtn" style="display:none;">
+<i class="fas fa-user-clock"></i> Punch Out
+        </button>
+<button class="btn btn-ghost btn-sm" id="notifBtn" title="Notifications">
+<i class="fas fa-bell"></i> Notification
+<span class="badge-count" id="notifCount" style="display:none;">0</span>
+</button>
+<button class="btn btn-ghost btn-sm" id="messageBtn" title="Messages">
+<i class="fas fa-comment-dots"></i> Message
+</button>
+</div>
+</div>
+
+<div class="table-container">
+<table class="table">
+<thead>
+<tr>
+<th>Job No</th>
+<th>Data Copy Date</th>
+<th>System No</th>
+<th>Drive</th>
+<th>Studio Name</th>
+<th>Project Name</th>
+<th>Data Ready Date</th>
+<th>Data Deliver Date</th>
+<th>Payment</th>
+<th>Deleted At</th>
+                  
+</tr>
+</thead>
+<tbody id="jobsTableBody">
+<tr>
+<td class="center muted" colspan="12">
+<i class="fa fa-spinner fa-spin"></i> Loading...
+            </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- ASSIGN PROJECT MODAL -->
+<div class="modal" id="assignProjectModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>Assign Project</h3>
+<button class="close-btn" id="closeModal">×</button>
+</div>
+<input class="input" id="projectSearch" placeholder="Studio / Project / Job No search..."/>
+<div class="project-list" id="projectList">
+<div class="loading muted"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-ghost" id="cancelAssign">Cancel</button>
+<button class="btn btn-primary" disabled="" id="confirmAssign">Assign</button>
+</div>
+</div>
+</div>
+<!-- PROJECT EDITOR MODAL - EMPLOYEE VERSION -->
+<div class="modal" id="projectEditorModal">
+<div class="modal-content large-modal">
+<div class="modal-header">
+<h3>Edit Project</h3>
+<button class="close-btn" id="closeEditorModal">×</button>
+</div>
+<div class="modal-body">
+<!-- Project Details Section -->
+<div class="form-section">
+<h4>Project Details</h4>
+<div class="grid">
+<div><label>Project Name</label><input class="input" id="editProjectName" type="text"/></div>
+<div><label>Job No</label><input class="input" id="editJobNo" readonly="" type="text"/></div>
+<div><label>Studio Name</label><input class="input" id="editStudioName" readonly="" type="text"/></div>
+</div>
+</div>
+<!-- Dates Section -->
+<div class="form-section">
+<h4>Dates</h4>
+<div class="grid">
+<div>
+  <label>Data Ready Date</label>
+  <div class="date-row">
+    <input class="input" id="editDataReadyDate" type="date"/>
+    <label class="chip-toggle">
+      <input id="editDataReadyToday" type="checkbox"/>
+      <span>Today</span>
+    </label>
+  </div>
+</div>
+<div><label>Data Deliver Date</label><input class="input" id="editDataDeliverDate" type="date"/></div>
+</div>
+</div>
+<!-- Items Section (SINGLE INPUT FOR TIME OR QTY) -->
+<div class="form-section">
+<h4>Items &amp; Services</h4>
+<div class="item-add">
+  <div class="item-select-wrap">
+    <input class="input" id="itemSelectSearch" placeholder="Select Service/Item" autocomplete="off"/>
+    <div class="suggestions" id="itemSuggestions" style="display:none;"></div>
+    <select class="input" id="itemSelect" style="display:none;">
+      <option value="">Select Service/Item</option>
+    </select>
+  </div>
+  <div class="item-value-input">
+    <input class="input" id="itemValue" placeholder="Time (H:MM) or Qty" type="text"/>
+  </div>
+  <button class="btn btn-primary btn-sm" id="addItemBtn">Add Item</button>
+</div>
+<div class="items-list" id="itemsList">
+<!-- Items auto add honge customer profile ke hisab se -->
+</div>
+</div>
+</div>
+<div class="modal-footer">
+<button class="btn btn-ghost" id="cancelEditor">Cancel</button>
+<!-- DELETE BUTTON (visible/enabled only when allowed) -->
+<button class="btn btn-ghost" id="deleteProjectBtn" style="display:none; margin-right:auto; border-color:var(--error); color:var(--error);">
+        Delete Project
+      </button>
+<button class="btn btn-primary" id="saveProjectChanges">Save Changes</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast">Done</div>
+
+<!-- PUNCH IN CONFIRM MODAL -->
+<div class="modal" id="punchConfirmModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Punch In Confirmation</h3>
+      <button class="close-btn" id="closePunchConfirm">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="muted" id="punchConfirmText">Are you sure you want to punch in?</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="cancelPunchConfirm">Cancel</button>
+      <button class="btn btn-primary" id="confirmPunchIn">Confirm</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script defer="defer" src="employee-user.js" type="module"></script>
+</body>
+</html>

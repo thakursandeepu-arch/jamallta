@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<title>Create New Job — Jaamalta Films</title>
+<!-- reuse your global style (keeps consistency). If you want only local styling, remove this line -->
+<link href="../employee-user.css" rel="stylesheet"/>
+<!-- local page css -->
+<link href="create-new-job.css" rel="stylesheet"/>
+<!-- font-awesome icons -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"/>
+</head>
+<body>
+<div class="container">
+<div class="header" style="align-items:center;">
+<div class="logo" style="gap:12px;">
+<div class="logo-icon"><i class="fas fa-film"></i></div>
+<div class="logo-text">Jaamalta Films</div>
+</div>
+<div>
+<button class="btn btn-ghost" id="backBtn"><i class="fas fa-arrow-left"></i> Back</button>
+</div>
+</div>
+<div class="card" style="margin-top:18px;">
+<div style="display:flex;justify-content:space-between;align-items:center;">
+<h3 style="margin:0">Payments &amp; Create Job</h3>
+<div>
+<button class="btn btn-ghost" id="refreshBtn"><i class="fas fa-sync-alt"></i> Refresh</button>
+</div>
+</div>
+<div style="margin-top:14px;">
+<div class="tabbar">
+<button class="tab active" data-tab="create" id="tabCreate">Create Job</button>
+<button class="tab" data-tab="payments" id="tabPayments">Payments</button>
+</div>
+<!-- CREATE TAB -->
+<div class="tabcontent" id="createTab">
+<div class="form-section">
+<div class="grid">
+<div>
+<label>Job No</label>
+<input class="input" id="jobNo" placeholder="JF-001"/>
+</div>
+<div>
+<label>Project Name</label>
+<input class="input" id="projectName" placeholder="Project title"/>
+</div>
+<div>
+<label>Studio / Customer Name</label>
+<div style="position:relative;">
+<input autocomplete="off" class="input" id="studioName" placeholder="Start typing studio name..."/>
+<div class="suggestions" id="studioSuggestions" style="display:none;"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="form-section">
+<div class="grid">
+<div>
+<label>Data Copy Date</label>
+<input class="input" id="dataCopyDateDisplay" readonly=""/>
+<input id="dataCopyDate" type="hidden"/>
+</div>
+<div>
+<label>Advance Payment (₹)</label>
+<input class="input" id="advancePayment" min="0" type="number" value="0"/>
+</div>
+<div>
+<label>System No (prefix C-)</label>
+<input class="input" id="systemNo" placeholder="C-001"/>
+<small class="muted-small">Auto-generated but editable.</small>
+</div>
+<div>
+<label>Drive (A/B/C... uppercase)</label>
+<input class="input" id="drive" maxlength="4" placeholder="C"/>
+<small class="muted-small">Single letter or short code (will be saved uppercase).</small>
+</div>
+</div>
+</div>
+<div class="form-section">
+<h4 style="color:var(--accent)"><i class="fas fa-box-open"></i> Items &amp; Services (optional)</h4>
+<div class="item-add">
+<select class="input" id="itemSelect">
+<option value="">Select customer first</option>
+</select>
+<div>
+<input class="input" id="itemValue" placeholder="Time (H:MM) or Quantity (e.g. 2 or 01:30)"/>
+</div>
+<button class="btn btn-primary btn-sm" id="addItemBtn">Add Item</button>
+</div>
+<div class="items-list" id="itemsList">
+<div class="muted">No items added. You can add customer items or leave empty.</div>
+</div>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+<button class="btn btn-ghost" id="cancelCreate">Cancel</button>
+<button class="btn btn-primary" id="createJobSubmit">Create Job</button>
+</div>
+</div>
+<!-- PAYMENTS TAB -->
+<div class="tabcontent" id="paymentsTab" style="display:none;">
+<div class="form-section">
+<div class="grid">
+<div>
+<label>Select Customer</label>
+<div style="position:relative;">
+<input autocomplete="off" class="input" id="payStudioName" placeholder="Type to search customer..."/>
+<div class="suggestions" id="payStudioSuggestions" style="display:none;"></div>
+</div>
+</div>
+<div>
+<label>Payment Amount (₹)</label>
+<input class="input" id="paymentAmount" min="0" placeholder="Amount" step="1" type="number"/>
+</div>
+<div>
+<label>Payment Method</label>
+<select class="input" id="paymentMethod">
+<option value="cash">Cash</option>
+<option value="bank">Bank Transfer</option>
+<option value="upi">UPI</option>
+<option value="other">Other</option>
+</select>
+</div>
+<div>
+<label>Note</label>
+<input class="input" id="paymentNote" placeholder="Optional note"/>
+</div>
+</div>
+<div style="margin-top:10px;">
+<button class="btn btn-primary btn-sm" id="addPaymentBtn">Add Payment to Customer Account</button>
+<small class="muted-small">Payment will be saved to <code>payments</code> and customer's <code>advanceAmount</code> updated.</small>
+</div>
+</div>
+<div style="margin-top:8px;">
+<h4 style="margin:0 0 8px 0;">Recent Payments (selected customer)</h4>
+<div class="items-list" id="recentPaymentsList"><div class="muted">Select a customer to view recent payments.</div></div>
+</div>
+</div>
+</div>
+</div>
+<div class="toast" id="toast">Done</div>
+</div>
+<!-- app JS (module) -->
+<script defer="defer" src="create-new-job.js" type="module"></script>
+<!-- icons -->
+<script defer="defer" src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+</body>
+</html>

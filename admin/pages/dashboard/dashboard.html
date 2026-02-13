@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Dashboard | Jamallta Films</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="dashboard.css" />
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ================= CARDS ================= -->
+  <div class="cards">
+
+    <div class="card active" id="totalJobs" onclick="filterView('all', this)">
+      <div class="card-title">Total Jobs</div>
+      <span>0</span>
+    </div>
+
+    <div class="card" id="activeJobs" onclick="filterView('Active', this)">
+      <div class="card-title">Active Jobs</div>
+      <span>0</span>
+    </div>
+
+    <div class="card" id="readyJobs" onclick="filterView('Ready', this)">
+      <div class="card-title">Ready Jobs</div>
+      <span>0</span>
+    </div>
+
+    <div class="card" id="deliveredJobs" onclick="filterView('Delivered', this)">
+      <div class="card-title">Delivered Jobs</div>
+      <span>0</span>
+    </div>
+
+    <!-- TOTAL REVENUE -->
+    <div class="card blue" id="totalRevenue" onclick="setChartMetric('revenue')">
+      <div class="card-title">Total Revenue</div>
+      <span>0</span>
+    </div>
+
+    <div class="card blue" id="received" onclick="setChartMetric('received')">
+      <div class="card-title">Received Amount</div>
+      <span>0</span>
+    </div>
+
+    <div class="card red" id="pendingAmount" onclick="setChartMetric('pending'); filterView('PendingAmount', this)">
+      <div class="card-title">Pending Amount</div>
+      <span>0</span>
+    </div>
+
+    <div class="card" id="totalSales" onclick="filterView('Pending', this)">
+      <div class="card-title">Pending Jobs</div>
+      <span>0</span>
+    </div>
+
+  </div>
+
+  <!-- ================= CHART ================= -->
+  <div class="chart-box">
+    <div class="chart-controls">
+      <label for="chartRange">Range</label>
+      <select id="chartRange">
+        <option value="month">This Month</option>
+        <option value="year">This Year</option>
+        <option value="lifetime">Lifetime</option>
+        <option value="custom">Custom</option>
+      </select>
+      <label for="chartMetric">Metric</label>
+      <select id="chartMetric">
+        <option value="count">Jobs Count</option>
+        <option value="revenue">Total Revenue</option>
+        <option value="received">Received Amount</option>
+        <option value="pending">Pending Amount</option>
+      </select>
+      <div class="chart-custom" id="chartCustom">
+        <input type="date" id="chartFrom" />
+        <span>to</span>
+        <input type="date" id="chartTo" />
+        <button id="chartApply" type="button">Apply</button>
+      </div>
+    </div>
+    <canvas id="jobsChart"></canvas>
+  </div>
+
+  <!-- ================= TABLE ================= -->
+  <div class="table-box">
+
+    <input
+      type="text"
+      id="search"
+      placeholder="Search job / client / studio"
+    />
+
+    <table class="jobs-table">
+      <thead id="tableHead">
+        <tr>
+          <th>Job No</th>
+          <th>Data Copy</th>
+          <th>System No</th>
+          <th>Drive</th>
+          <th>Studio</th>
+          <th>Project</th>
+          <th>Assigned At</th>
+          <th>Editor</th>
+          <th>Amount</th>
+          <th>Pending Amount</th>
+          <th>Paid Amount</th>
+          <th>Ready</th>
+          <th>Deliver</th>
+          <th>Deleted At</th>
+        </tr>
+      </thead>
+      <tbody id="jobsTable"></tbody>
+    </table>
+
+  </div>
+
+</div>
+
+<script type="module" src="dashboard.js"></script>
+</body>
+</html>

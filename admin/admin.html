@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin Dashboard | Jamallta Films</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="assets/admin.css">
+
+<!-- 🔐 AUTH CHECK (VERY IMPORTANT) -->
+<script type="module" src="assets/admin-auth.js"></script>
+</head>
+
+<body>
+
+<!-- ========== SIDEBAR ========== -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo-box">
+    <div class="logo-circle">JF</div>
+    <div class="brand">Jamallta Films</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="section-title">Dashboard</div>
+    <button class="nav-btn active" data-page="pages/dashboard/dashboard.html">Overview</button>
+  </div>
+
+  <div class="nav-section">
+    <div class="section-title">Management</div>
+    <button class="nav-btn" data-page="pages/clients/clients.html">Clients</button>
+    <!-- ❌ Projects button removed -->
+    <button class="nav-btn" data-page="pages/team/team.html">Team</button>
+    <button class="nav-btn" data-page="pages/media/media.html">Media Manager</button>
+  </div>
+
+  <div class="nav-section">
+    <div class="section-title">Finance</div>
+    <button class="nav-btn" data-page="pages/billing/billing.html">Billing</button>
+    <button class="nav-btn" data-page="pages/monthly-report/monthly-report.html">Monthly Report</button>
+  </div>
+
+  <div class="nav-section">
+    <div class="section-title">System</div>
+    <button class="nav-btn" data-page="pages/recycle-bin/recycle-bin.html">Recycle Bin</button>
+  </div>
+
+  <button class="logout-btn" id="btnLogout">Logout</button>
+</aside>
+
+<!-- ========== HEADER ========== -->
+<header class="header">
+  <div class="header-left">
+    <span class="mobile-toggle" id="mobileToggle">☰</span>
+    <div>
+      <div id="pageTitle">Overview</div>
+      <div class="welcome" id="welcomeName">Welcome</div>
+    </div>
+  </div>
+</header>
+
+<!-- ========== CONTENT ========== -->
+<iframe
+  id="contentFrame"
+  class="frame"
+  src="pages/dashboard/dashboard.html">
+</iframe>
+
+<!-- ========== LOGOUT MODAL ========== -->
+<div id="logoutModal" class="modal-backdrop">
+  <div class="modal-box">
+    <h3>Logout Confirmation</h3>
+    <p>Are you sure you want to logout from Admin Panel?</p>
+
+    <div class="modal-actions">
+      <button class="btn cancel" id="cancelLogout">Cancel</button>
+      <button class="btn danger" id="confirmLogout">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/admin.js"></script>
+</body>
+</html>
+
+
