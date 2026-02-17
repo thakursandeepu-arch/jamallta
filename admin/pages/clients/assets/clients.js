@@ -561,7 +561,7 @@ function main() {
       if(manualAdvanceInput) manualAdvanceInput.value = (c.advanceAmount||0).toFixed ? (Number(c.advanceAmount||0).toFixed(2)) : (c.advanceAmount||0);
       if(liveBalanceSpan) liveBalanceSpan.textContent = (c.balance||0).toFixed(2);
       if(c.advanceAmount>0 && advanceInfo && advanceAmountSpan){ advanceInfo.style.display="block"; advanceAmountSpan.textContent=(c.advanceAmount||0).toFixed(2); } else if(advanceInfo) advanceInfo.style.display="none";
-      if(lastUpdatedSpan) lastUpdatedSpan.textContent = c.updatedAt ? (c.updatedAt.seconds ? c.updatedAt.toDate().toLocaleString() : new Date(c.updatedAt).toLocaleString()) : "—";
+      if(lastUpdatedSpan) lastUpdatedSpan.textContent = c.updatedAt ? (c.updatedAt.seconds ? c.updatedAt.toDate().toLocaleString() : new Date(c.updatedAt).toLocaleString()) : "ï¿½";
       if(c.lastAssignedEditor && lastAssignedEditorEl){ lastAssignedEditorEl.style.display="block"; lastAssignedEditorEl.textContent = `Assigned Editor: ${c.lastAssignedEditor}`; } else if(lastAssignedEditorEl) lastAssignedEditorEl.style.display="none";
     } else {
       if(studioNameInput) studioNameInput.value = studioName;
@@ -920,7 +920,7 @@ function main() {
     
     // Only show assignedTo (not email)
     const displayEditor = j.assignedTo ? j.assignedTo : "Not assigned";
-    const assignedDate = j.assignedAt ? (j.assignedAt.seconds ? j.assignedAt.toDate().toLocaleString() : new Date(j.assignedAt).toLocaleString()) : "—";
+    const assignedDate = j.assignedAt ? (j.assignedAt.seconds ? j.assignedAt.toDate().toLocaleString() : new Date(j.assignedAt).toLocaleString()) : "ï¿½";
     
     let itemsHtml = "<table style='width:100%'><thead><tr><th style='text-align:left'>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead><tbody>";
     (j.itemsAdded||[]).forEach(it=>{
@@ -1075,14 +1075,14 @@ function main() {
         
         count++; 
         totalAmt += Number(p.amount||0);
-        const dateStr = p.createdAt && p.createdAt.seconds ? p.createdAt.toDate().toLocaleDateString() : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "—");
+        const dateStr = p.createdAt && p.createdAt.seconds ? p.createdAt.toDate().toLocaleDateString() : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "ï¿½");
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${dateStr}</td><td class="text-success">\u20B9${p.amount}</td><td>${escapeHtml(p.note||"—")}</td>`;
+        tr.innerHTML = `<td>${dateStr}</td><td class="text-success">\u20B9${p.amount}</td><td>${escapeHtml(p.note||"ï¿½")}</td>`;
         
         paymentsList.appendChild(tr);
       });
       
-      if(paymentsCount) paymentsCount.textContent = `${count} payments • Total \u20B9${totalAmt}`;
+      if(paymentsCount) paymentsCount.textContent = `${count} payments ï¿½ Total \u20B9${totalAmt}`;
       updateBalanceFromData();
       
       // Note: We don't trigger recalculation here because
@@ -1541,8 +1541,8 @@ function main() {
     docPDF.setTextColor(...textMuted);
     docPDF.text("Vikas Mohalla Rabon, Solan Himachal Pradesh", margin, 68);
     docPDF.text("PIN 173211", margin, 80);
-    docPDF.text("Phone: 98166 89200", margin, 92);
-    docPDF.text("Email: info@jamalltafilms.com", margin, 104);
+    docPDF.text("Phone: 8091181135", margin, 92);
+    docPDF.text("Email: jamalltafilms@gmail.com", margin, 104);
 
     // Date (right)
     docPDF.setFont("helvetica", "bold");
@@ -1794,7 +1794,7 @@ function main() {
 
     // UPI QR (amount-less static)
     const upiId = "thakursandeepm@oksbi";
-    const payeeName = "Jamallta Films";
+    const payeeName = "SANDEEP";
     const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&cu=INR`;
     const qrDataUrl = await generateQrDataUrl(upiUrl, 120);
 

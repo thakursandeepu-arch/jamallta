@@ -210,6 +210,60 @@ nav a:hover{
 }
 
 /* =========================
+   PAYMENTS
+========================= */
+.pay-box{
+  margin:28px auto 0;
+  max-width:640px;
+  background:var(--glass);
+  border:1px solid rgba(201,163,71,0.2);
+  border-radius:18px;
+  padding:20px;
+  box-shadow:0 14px 30px rgba(16,12,8,0.12);
+}
+.pay-title{
+  font-weight:700;
+  font-size:1.1rem;
+  color:var(--ink);
+  margin-bottom:6px;
+}
+.pay-sub{
+  color:var(--muted);
+  margin-bottom:14px;
+}
+.pay-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  flex-wrap:wrap;
+}
+.pay-label{
+  font-weight:600;
+  color:var(--text);
+}
+.pay-row input{
+  padding:10px 14px;
+  border-radius:999px;
+  border:1px solid rgba(201,163,71,0.5);
+  background:#fff;
+  min-width:140px;
+  text-align:center;
+  font-weight:600;
+}
+.payment-status{
+  margin-top:12px;
+  font-weight:600;
+  min-height:20px;
+}
+.payment-status.success{
+  color:#1f7a2e;
+}
+.payment-status.error{
+  color:#b23a2b;
+}
+
+/* =========================
    FEATURED IMAGE
 ========================= */
 .featured-photo{

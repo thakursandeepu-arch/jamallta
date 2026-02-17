@@ -300,6 +300,122 @@ initSiteCms();
 initMediaFeed();
 
 /* =====================================
+   RAZORPAY PAYMENTS
+===================================== */
+const PAYMENTS_API = {
+  createOrder: "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/createRazorpayOrder",
+  verifyPayment: "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/verifyRazorpayPayment"
+};
+
+const payNowBtn = $("payNowBtn");
+const payAmountInput = $("payAmount");
+const paymentStatus = $("paymentStatus");
+
+function setPaymentStatus(message, type = "") {
+  if (!paymentStatus) return;
+  paymentStatus.textContent = message || "";
+  paymentStatus.classList.remove("success", "error");
+  if (type) paymentStatus.classList.add(type);
+}
+
+async function createOrder(amountInr) {
+  const response = await fetch(PAYMENTS_API.createOrder, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      amount: amountInr,
+      currency: "INR",
+      receipt: `jf_${Date.now()}`
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error || "Order creation failed");
+  }
+  return data;
+}
+
+async function verifyPayment(details) {
+  const response = await fetch(PAYMENTS_API.verifyPayment, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(details)
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error || "Verification failed");
+  }
+  return data;
+}
+
+async function startRazorpayCheckout() {
+  if (!window.Razorpay) {
+    setPaymentStatus("Razorpay script not loaded. Please refresh.", "error");
+    return;
+  }
+
+  const amount = Number(payAmountInput?.value || 0);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    setPaymentStatus("Enter a valid amount in INR.", "error");
+    return;
+  }
+
+  try {
+    if (payNowBtn) payNowBtn.disabled = true;
+    setPaymentStatus("Creating order...", "");
+
+    const order = await createOrder(amount);
+
+    const options = {
+      key: order.keyId,
+      amount: order.amount,
+      currency: order.currency,
+      name: "Jamallta Films",
+      description: "Video editing payment",
+      order_id: order.orderId,
+      handler: async function (response) {
+        try {
+          setPaymentStatus("Verifying payment...", "");
+          const result = await verifyPayment({
+            order_id: response.razorpay_order_id,
+            payment_id: response.razorpay_payment_id,
+            signature: response.razorpay_signature
+          });
+
+          if (result.verified) {
+            setPaymentStatus("Payment successful. Thank you!", "success");
+          } else {
+            setPaymentStatus("Payment verification failed.", "error");
+          }
+        } catch (err) {
+          setPaymentStatus(err?.message || "Verification failed.", "error");
+        } finally {
+          if (payNowBtn) payNowBtn.disabled = false;
+        }
+      },
+      theme: { color: "#c9a347" }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.on("payment.failed", function (resp) {
+      const msg = resp?.error?.description || "Payment failed.";
+      setPaymentStatus(msg, "error");
+      if (payNowBtn) payNowBtn.disabled = false;
+    });
+    rzp.open();
+  } catch (err) {
+    setPaymentStatus(err?.message || "Payment failed.", "error");
+    if (payNowBtn) payNowBtn.disabled = false;
+  }
+}
+
+if (payNowBtn) {
+  payNowBtn.addEventListener("click", startRazorpayCheckout);
+}
+
+/* =====================================
    SMOOTH SCROLL
 ===================================== */
 document.querySelectorAll('a[href^="#"]').forEach(link => {

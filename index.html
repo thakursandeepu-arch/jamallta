@@ -225,6 +225,17 @@
       <a href="tel:+918091181135" class="btn primary">Call Now</a>
       <a href="mailto:thakursandeepu@gmail.com" class="btn outline">Email Us</a>
     </div>
+
+    <div class="pay-box" aria-live="polite">
+      <p class="pay-title">Pay Online</p>
+      <p class="pay-sub">Enter your amount and pay securely with Razorpay.</p>
+      <div class="pay-row">
+        <label class="pay-label" for="payAmount">Amount (INR)</label>
+        <input id="payAmount" type="number" min="1" step="1" value="5000" />
+        <button class="btn primary" id="payNowBtn" type="button">Pay Now</button>
+      </div>
+      <p id="paymentStatus" class="payment-status"></p>
+    </div>
   </section>
 
 
@@ -237,6 +248,7 @@
 </footer>
 
 <!-- ================= SCRIPTS ================= -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script type="module" src="assets/index.js"></script>
 
 <script>
