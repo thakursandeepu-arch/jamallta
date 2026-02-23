@@ -234,6 +234,22 @@ exports.onPaymentCreate = functions.firestore
       await jobRef.update({ paidAmount: paid + adjust });
       remaining -= adjust;
     }
+
+    try {
+      await db.collection("notifications").add({
+        audience: "admin",
+        title: "Payment Added",
+        message: `Payment received from ${p.studioName || p.customerEmail || "Client"}: ₹${Number(p.amount || 0)}`,
+        studioName: p.studioName || "",
+        jobNo: p.jobNo || p.jobId || "",
+        source: "payment_add",
+        createdBy: p.customerEmail || "",
+        read: false,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      console.error("Admin notification (payment) failed:", e);
+    }
   });
 
 function generateTempPassword() {

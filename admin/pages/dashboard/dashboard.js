@@ -3,6 +3,10 @@ import {
   getFirestore,
   collection,
   onSnapshot,
+  query,
+  where,
+  orderBy,
+  limit,
   updateDoc,
   doc,
   serverTimestamp
@@ -24,6 +28,50 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+let notifStarted = false;
+let lastNotifSeconds = 0;
+
+function requestNotifPermission() {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function showBrowserNotif(title, body) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  new Notification(title, { body });
+}
+
+function startAdminNotifications() {
+  if (notifStarted) return;
+  notifStarted = true;
+  requestNotifPermission();
+  const q = query(
+    collection(db, "notifications"),
+    where("audience", "==", "admin"),
+    orderBy("createdAt", "desc"),
+    limit(25)
+  );
+  onSnapshot(q, (snap) => {
+    if (!snap.empty && lastNotifSeconds === 0) {
+      lastNotifSeconds = Math.floor(Date.now() / 1000);
+      return;
+    }
+    let maxSeen = lastNotifSeconds;
+    snap.forEach((d) => {
+      const data = d.data() || {};
+      const ts = data.createdAt?.seconds || 0;
+      if (ts > lastNotifSeconds) {
+        showBrowserNotif(data.title || "Notification", data.message || "");
+        if (ts > maxSeen) maxSeen = ts;
+      }
+    });
+    lastNotifSeconds = maxSeen;
+  });
+}
 
 /* ================= DOM ================= */
 const jobsTable = document.getElementById("jobsTable");
@@ -182,7 +230,10 @@ function startListeners() {
 }
 
 onAuthStateChanged(auth, (user) => {
-  if (user) startListeners();
+  if (user) {
+    startListeners();
+    startAdminNotifications();
+  }
 });
 
 /* ================= CARDS ================= */

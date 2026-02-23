@@ -7,6 +7,24 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/fi
 
 /* firebase-config is shared at /employee/firebase-config.js */
 
+async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      audience: "admin",
+      title,
+      message,
+      studioName,
+      jobNo,
+      source,
+      createdBy: currentUserEmail || currentUserName || "",
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("createAdminNotification error:", err);
+  }
+}
+
 // DOM refs (same ids as in your page)
 const tabCreate = document.getElementById('tabCreate');
 const tabPayments = document.getElementById('tabPayments');
@@ -334,6 +352,12 @@ addPaymentBtn.addEventListener('click', async (e)=>{
       customerName: studioNameForPayment
     };
     await addDoc(collection(db,'payments'), payPayload);
+    await createAdminNotification({
+      title: "Payment Added",
+      message: `Payment received from ${studioNameForPayment || "Client"}: ₹${amt}`,
+      studioName: studioNameForPayment || "",
+      source: "payment_add",
+    });
 
     const custRef = doc(db,'customers', selectedPaymentCustomerId);
     try{
@@ -405,6 +429,13 @@ createJobSubmit.addEventListener('click', async ()=>{
 
     const jobPayload = { jobNo: jNo, projectName: pName, studioName: sName, customerName: sName, customerId: customerId||'', date: todayISODate, createdAt: serverTimestamp(), addItemDate: todayISODate, dataCopyDate: dataCopyDate.value||'', dataCopyDateDisplay: dataCopyDateDisplay.value||'', totalAmount:0, advancePayment:adv, itemsAdded: currentItems, correctionsList:[], moveData:0, deleteData:0, correctionData:0, systemNo: sysNo, drive: driveVal, editorName: currentUserName||'', visibleToEmployees:false };
     await addDoc(collection(db,'jobs'), jobPayload);
+    await createAdminNotification({
+      title: "New Job Added",
+      message: `New job created for ${sName}: ${pName} (${jNo}).`,
+      studioName: sName,
+      jobNo: jNo,
+      source: "job_add",
+    });
 
     showToast('Billing + Customer updated. Job saved (hidden from employee view).');
     customersCache = null;

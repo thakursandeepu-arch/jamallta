@@ -24,6 +24,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      audience: "admin",
+      title,
+      message,
+      studioName,
+      jobNo,
+      source,
+      createdBy: auth?.currentUser?.email || "",
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("createAdminNotification error:", err);
+  }
+}
 const functions = getFunctions(app, "us-central1");
 const callUpdateAuthUser = async (payload) => {
   const fn = httpsCallable(functions, "updateAuthUser");
@@ -1223,6 +1241,12 @@ function main() {
           createdAt: serverTimestamp() 
         }).then(async () => {
           showToast("Payment added");
+          await createAdminNotification({
+            title: "Payment Added",
+            message: `Payment received from ${currentStudio}: ₹${amt}`,
+            studioName: currentStudio,
+            source: "payment_add",
+          });
           // Trigger STRICT recalculation
           await recalcPaymentsFIFO(currentStudio);
         });
@@ -1245,6 +1269,12 @@ function main() {
       amount: amt, 
       note, 
       createdAt: serverTimestamp() 
+    });
+    await createAdminNotification({
+      title: "Payment Added",
+      message: `Payment received from ${currentStudio}: ₹${amt}`,
+      studioName: currentStudio,
+      source: "payment_add",
     });
     
     bsPaymentModal && bsPaymentModal.hide();

@@ -30,6 +30,24 @@ import {
 
 const ATTENDANCE_SELF_MARK = true;
 
+async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      audience: "admin",
+      title,
+      message,
+      studioName,
+      jobNo,
+      source,
+      createdBy: currentUserEmail || currentUserData?.fullName || "",
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("createAdminNotification error:", err);
+  }
+}
+
 // --------------- DOM ELEMENTS ---------------
 const avatarEl = document.getElementById("avatar");
 const userNameEl = document.getElementById("userName");
@@ -284,6 +302,12 @@ async function submitPunchIn() {
       punchInAt: { seconds: Date.now() / 1000 },
       updatedAt: { seconds: Date.now() / 1000 },
     };
+
+    await createAdminNotification({
+      title: "Punch In",
+      message: `${currentUserData?.fullName || currentUserEmail || "Employee"} punched in.`,
+      source: "attendance",
+    });
 
     punchStatus.textContent = "Punch in successful.";
     hidePunchGate();
@@ -1453,6 +1477,9 @@ if (saveProjectChanges) {
     try {
       const finalTotal = calculateTotalAmount();
       const adv = Number(currentEditingJobData.advancePayment || 0);
+      const wasReady =
+        !!currentEditingJobData?.dataReadyDate ||
+        String(currentEditingJobData?.status || "").toLowerCase() === "ready";
 
       const updates = {
         projectName: editProjectName.value.trim(),
@@ -1480,6 +1507,19 @@ if (saveProjectChanges) {
 
       if (currentEditingJobData.studioName) {
         await recalcAndUpdateCustomerBalance(currentEditingJobData.studioName);
+      }
+
+      const isReadyNow =
+        !!currentEditingJobData?.dataReadyDate ||
+        String(currentEditingJobData?.status || "").toLowerCase() === "ready";
+      if (!wasReady && isReadyNow) {
+        await createAdminNotification({
+          title: "Job Ready",
+          message: `Job ready for ${currentEditingJobData?.studioName || "Studio"} (${currentEditingJobData?.projectName || "Project"}).`,
+          studioName: currentEditingJobData?.studioName || "",
+          jobNo: currentEditingJobData?.jobNo || "",
+          source: "job_ready",
+        });
       }
 
       showToast("Project updated");
@@ -1770,6 +1810,13 @@ if (confirmAssign) {
       // remove from availableProjects and close modal
       availableProjects = availableProjects.filter((p) => p.id !== proj.id);
       if (assignModal) assignModal.style.display = "none";
+      await createAdminNotification({
+        title: "Job Assigned",
+        message: `Job assigned to ${currentUserData?.fullName || currentUserEmail} (${jobData.projectName || "Project"}).`,
+        studioName: jobData.studioName || jobData.customerName || "",
+        jobNo: jobData.jobNo || "",
+        source: "job_assigned",
+      });
       showToast("Project assigned");
     } catch (err) {
       console.error("assign project error:", err);
