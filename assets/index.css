@@ -370,23 +370,29 @@ section{
   max-width:1200px;
   margin:16px auto 0;
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(220px,280px));
   gap:18px;
+  justify-content:center;
 }
 .reel-card{
-  background:#fff;
+  background:transparent;
   border-radius:18px;
   overflow:hidden;
-  box-shadow:0 14px 30px rgba(0,0,0,0.14);
-  border:1px solid rgba(0,0,0,0.06);
+  box-shadow:none;
+  border:none;
   display:flex;
   flex-direction:column;
+  width:100%;
+  max-width:280px;
+  margin:0 auto;
 }
 .reel-thumb{
   width:100%;
   aspect-ratio:9/16;
   background:#f3f3f3;
   position:relative;
+  border-radius:16px;
+  overflow:hidden;
 }
 .reel-thumb video{
   width:100%;
@@ -407,7 +413,21 @@ section{
   display:flex;
   flex-direction:column;
   transition:transform .25s ease, box-shadow .25s ease;
-  border:1px solid rgba(0,0,0,0.06);
+  border:none;
+}
+
+/* Remove any divider/line between cards */
+.media-card,
+.media-thumb,
+.media-body,
+.ig-actions,
+.ig-counts,
+.media-thumb img,
+.media-thumb video{
+  border:none !important;
+  outline:none !important;
+  box-shadow:none !important;
+  background:transparent !important;
 }
 .media-card:hover{
   transform:translateY(-6px);
@@ -417,9 +437,10 @@ section{
 .media-thumb{
   width:100%;
   aspect-ratio:16/9;
-  background:#f3f3f3;
+  background:transparent;
   position:relative;
   overflow:hidden;
+  border:none;
 }
 
 .media-thumb img,
@@ -428,6 +449,16 @@ section{
   height:100%;
   object-fit:cover;
   display:block;
+}
+
+/* Hide center play overlay icon (Chrome/WebKit) */
+.media-thumb video::-webkit-media-controls-overlay-play-button,
+.media-thumb video::-webkit-media-controls-start-playback-button{
+  display:none !important;
+  -webkit-appearance:none;
+}
+.media-thumb.is-reel{
+  aspect-ratio:9/16;
 }
 .media-card.media-photo img{
   object-position:50% 20%;
@@ -453,25 +484,74 @@ section{
   overflow:hidden;
 }
 .media-card.media-photo .media-body{
-  display:none;
+  display:block;
 }
-.media-caption{
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:0;
-  padding:16px 18px;
-  background:linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%);
-  color:#fff;
+.media-card.media-photo .media-body .media-title{
+  font-size:1rem;
 }
-.media-caption .media-title{
-  color:#fff;
-  margin:0 0 4px;
-  font-size:1.1rem;
-}
-.media-caption .media-desc{
-  color:rgba(255,255,255,0.85);
+.media-card.media-photo .media-body .media-desc{
   font-size:0.9rem;
+}
+/* Remove bottom white block on photo cards */
+.media-card.media-photo{
+  background:transparent;
+  box-shadow:none;
+}
+  .media-card.media-photo .media-body{
+  padding:10px 2px 6px;
+  background:transparent;
+}
+.media-card.media-photo .ig-actions,
+.media-card.media-photo .ig-counts{
+  padding-left:2px;
+  padding-right:2px;
+  background:transparent;
+}
+
+/* Videos: make clean & professional like photos */
+.media-card.media-video{
+  background:transparent;
+  box-shadow:none;
+}
+.media-card.media-reel{
+  background:transparent;
+  box-shadow:none;
+}
+.media-card{
+  border:none;
+}
+.media-body,
+.ig-actions,
+.ig-counts{
+  border:none;
+  background:transparent;
+}
+
+/* Reels: remove bottom white area */
+.reel-post .ig-actions,
+.reel-post .ig-counts{
+  background:transparent;
+  border:none;
+  padding-left:2px;
+  padding-right:2px;
+}
+.media-card.media-video .media-body{
+  padding:10px 2px 6px;
+  background:transparent;
+}
+.media-card.media-video .ig-actions,
+.media-card.media-video .ig-counts{
+  padding-left:2px;
+  padding-right:2px;
+  background:transparent;
+}
+
+/* Hide action strip for videos/reels (remove white bar) */
+.media-card.media-video .ig-actions,
+.media-card.media-video .ig-counts,
+.reel-post .ig-actions,
+.reel-post .ig-counts{
+  display:none;
 }
 .media-badge{
   position:absolute;
@@ -485,6 +565,11 @@ section{
   text-transform:uppercase;
   border-radius:999px;
   backdrop-filter:blur(6px);
+}
+@media (max-width:900px){
+  .media-badge{
+    display:none;
+  }
 }
 .play-overlay{
   position:absolute;
@@ -518,6 +603,81 @@ section{
   text-align:center;
 }
 
+/* Instagram-like cards */
+.ig-card{
+  background:#fff;
+  border:1px solid rgba(0,0,0,0.08);
+  border-radius:14px;
+  overflow:hidden;
+}
+.ig-header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 14px;
+}
+.ig-avatar{
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  font-weight:700;
+  color:#1b1408;
+  background:linear-gradient(135deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5);
+  font-size:0.78rem;
+}
+.ig-title{
+  font-weight:600;
+  font-size:0.95rem;
+  color:var(--ink);
+}
+.ig-meta{
+  font-size:0.78rem;
+  color:var(--muted);
+}
+.ig-actions{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 10px 2px;
+  border:none;
+  background:transparent;
+}
+.ig-actions-left{
+  display:flex;
+  gap:12px;
+}
+.ig-btn{
+  border:none;
+  background:transparent;
+  cursor:pointer;
+  width:32px;
+  height:32px;
+  padding:6px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+}
+.ig-btn:hover{
+  background:rgba(0,0,0,0.04);
+}
+.ig-like.is-liked{
+  color:#e74c3c;
+}
+.ig-icon{
+  width:22px;
+  height:22px;
+}
+.ig-counts{
+  padding:0 14px 12px;
+  font-weight:600;
+  font-size:0.85rem;
+  color:var(--ink);
+  border:none;
+  background:transparent;
+}
+
 /* =========================
    FOOTER
 ========================= */
@@ -534,11 +694,358 @@ footer h4{
   margin-bottom:6px;
 }
 
+/* Hide mobile bottom nav on desktop */
+.mobile-bottom-nav{
+  display:none;
+}
+
+/* =========================
+   LIGHTBOX
+========================= */
+.lightbox{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+  padding:24px;
+}
+.lightbox.is-open{
+  display:flex;
+}
+.lightbox img{
+  max-width:96vw;
+  max-height:90vh;
+  border-radius:12px;
+  box-shadow:0 20px 50px rgba(0,0,0,0.45);
+  transition:opacity .25s ease, transform .25s ease;
+  opacity:1;
+  transform:scale(1);
+}
+.lightbox.is-switching img{
+  opacity:0;
+  transform:scale(0.98);
+}
+.lightbox-close{
+  position:absolute;
+  top:16px;
+  right:20px;
+  width:40px;
+  height:40px;
+  border:none;
+  border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  color:#fff;
+  font-size:28px;
+  line-height:1;
+  cursor:pointer;
+}
+.lightbox-close:hover{
+  background:rgba(255,255,255,0.25);
+}
+
+/* =========================
+   REEL VIEWER (MOBILE)
+========================= */
+.reel-viewer{
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:none;
+  align-items:stretch;
+  justify-content:stretch;
+  z-index:10000;
+}
+.reel-viewer.is-open{
+  display:flex;
+}
+.reel-viewer video{
+  width:100vw;
+  height:100vh;
+  object-fit:contain;
+  background:#000;
+}
+.reel-close{
+  position:absolute;
+  top:16px;
+  right:18px;
+  width:40px;
+  height:40px;
+  border:none;
+  border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  color:#fff;
+  font-size:28px;
+  line-height:1;
+  cursor:pointer;
+  z-index:2;
+}
+.reel-hint{
+  position:absolute;
+  bottom:18px;
+  left:50%;
+  transform:translateX(-50%);
+  color:rgba(255,255,255,0.7);
+  font-size:0.8rem;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  z-index:2;
+}
+
+@media (max-width:700px){
+  .reel-viewer video{
+    width:100vw;
+    height:100svh;
+  }
+}
+.lightbox-nav{
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  width:44px;
+  height:44px;
+  border:none;
+  border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  color:#fff;
+  font-size:26px;
+  cursor:pointer;
+}
+.lightbox-nav:hover{
+  background:rgba(255,255,255,0.25);
+}
+.lightbox-nav.prev{
+  left:20px;
+}
+.lightbox-nav.next{
+  right:20px;
+}
+
 /* =========================
    RESPONSIVE
 ========================= */
 @media(max-width:900px){
   nav ul{
     display:none;
+  }
+}
+
+/* =========================
+   MOBILE - INSTAGRAM STYLE
+========================= */
+@media (max-width:700px){
+  body{
+    background:#f7f5f1;
+  }
+
+  header{
+    position:sticky;
+    top:0;
+    backdrop-filter:blur(10px);
+  }
+
+  .nav{
+    padding:10px 14px;
+  }
+
+  .brand{
+    font-size:0.95rem;
+    gap:10px;
+  }
+
+  .brand span{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+  }
+
+  .cta{
+    padding:8px 14px;
+    box-shadow:none;
+  }
+
+  main::before{
+    height:220px;
+  }
+
+  section{
+    padding:36px 16px;
+  }
+
+  .hero{
+    min-height:60vh;
+    padding:32px 16px 24px;
+  }
+
+  .hero-inner{
+    text-align:left;
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.06);
+    border-radius:18px;
+    padding:20px 16px;
+    box-shadow:0 8px 18px rgba(0,0,0,0.08);
+  }
+
+  #mainHeading{
+    font-size:clamp(26px,8vw,40px);
+  }
+
+  #description{
+    margin:0 0 16px;
+  }
+
+  .hero-buttons{
+    justify-content:flex-start;
+  }
+
+  .featured-photo{
+    margin:16px 16px 0;
+    min-height:220px;
+    border-radius:18px;
+  }
+
+  section{
+    text-align:left;
+  }
+
+  .section-title,
+  .section-sub{
+    text-align:left;
+  }
+
+  .cards{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+
+  /* Media grids become feed style */
+  .media-grid{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+
+  .media-card{
+    border-radius:0;
+    background:transparent;
+    box-shadow:none;
+  }
+
+  .media-thumb{
+    aspect-ratio:1/1;
+    border-radius:14px;
+  }
+
+  .ig-header{
+    padding:10px 12px;
+  }
+  .ig-avatar{
+    width:32px;
+    height:32px;
+    font-size:0.74rem;
+  }
+  .ig-title{
+    font-size:0.9rem;
+  }
+  .ig-meta{
+    font-size:0.75rem;
+  }
+  .ig-actions{
+    padding:6px 8px 2px;
+  }
+  .ig-btn{
+    font-size:1.05rem;
+  }
+  .ig-counts{
+    padding:0 12px 10px;
+  }
+
+  /* Reels: horizontal snap like Instagram */
+  .reel-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:14px;
+    overflow:visible;
+    padding:0;
+  }
+
+  .reel-grid::-webkit-scrollbar{
+    height:6px;
+  }
+
+  .reel-grid::-webkit-scrollbar-thumb{
+    background:rgba(0,0,0,0.2);
+    border-radius:999px;
+  }
+
+  .reel-card{
+    max-width:100%;
+    border-radius:16px;
+    box-shadow:0 8px 18px rgba(0,0,0,0.08);
+    background:#fff;
+    border:1px solid rgba(0,0,0,0.06);
+  }
+
+  .reel-post .reel-thumb{
+    aspect-ratio:9/16;
+  }
+
+  .media-heading{
+    font-size:1.05rem;
+    margin-bottom:8px;
+  }
+
+  .section-title{
+    font-size:1.5rem;
+  }
+
+  .section-sub{
+    margin-bottom:18px;
+  }
+
+  /* Keep portfolio headings visible on mobile */
+  #portfolio .section-title,
+  #portfolio .section-sub{
+    display:block;
+  }
+
+  .media-block{
+    display:block;
+  }
+
+  .mobile-bottom-nav{
+    position:fixed;
+    left:0;
+    right:0;
+    bottom:0;
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    padding:10px 16px;
+    background:#fff;
+    border-top:1px solid rgba(0,0,0,0.08);
+    z-index:200;
+  }
+
+  .mobile-bottom-nav a{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:44px;
+    height:44px;
+    border-radius:14px;
+    color:#1f1a13;
+    text-decoration:none;
+  }
+
+  .mobile-bottom-nav svg{
+    width:22px;
+    height:22px;
+    fill:currentColor;
+  }
+
+  footer{
+    padding-bottom:90px;
   }
 }

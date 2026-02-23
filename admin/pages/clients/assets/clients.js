@@ -126,6 +126,89 @@ function main() {
   /* escape helper */
   function escapeHtml(s){ if(!s && s !== 0) return ""; return s.toString().replace(/[&<>"']/g, (m)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])); }
 
+  /* ---------------- STUDIO RENAME (propagate everywhere) ---------------- */
+  async function batchUpdateDocs(docs, data){
+    if (!docs || !docs.length) return 0;
+    let batch = writeBatch(db);
+    let pending = 0;
+    let updated = 0;
+    for (const d of docs) {
+      if (!d?.ref) continue;
+      batch.update(d.ref, data);
+      pending++;
+      updated++;
+      if (pending >= 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        pending = 0;
+      }
+    }
+    if (pending > 0) await batch.commit();
+    return updated;
+  }
+
+  async function renameStudioEverywhere(oldName, newName){
+    const oldClean = (oldName || "").trim();
+    const newClean = (newName || "").trim();
+    if (!oldClean || !newClean || oldClean === newClean) return { updated: 0 };
+
+    // Jobs: update both studioName and customerName (cover legacy fields)
+    const jobsByStudio = await getDocs(query(collection(db,"jobs"), where("studioName","==", oldClean)));
+    const jobsByCustomer = await getDocs(query(collection(db,"jobs"), where("customerName","==", oldClean)));
+    const jobMap = new Map();
+    jobsByStudio.docs.forEach(d => jobMap.set(d.id, d));
+    jobsByCustomer.docs.forEach(d => jobMap.set(d.id, d));
+    const jobDocs = [...jobMap.values()];
+    await batchUpdateDocs(jobDocs, {
+      studioName: newClean,
+      customerName: newClean,
+      updatedAt: serverTimestamp()
+    });
+
+    // Payments (studioName or customerName)
+    const payByStudio = await getDocs(query(collection(db,"payments"), where("studioName","==", oldClean)));
+    const payByCustomer = await getDocs(query(collection(db,"payments"), where("customerName","==", oldClean)));
+    const payMap = new Map();
+    payByStudio.docs.forEach(d => payMap.set(d.id, d));
+    payByCustomer.docs.forEach(d => payMap.set(d.id, d));
+    const payDocs = [...payMap.values()];
+    await batchUpdateDocs(payDocs, {
+      studioName: newClean,
+      customerName: newClean,
+      updatedAt: serverTimestamp()
+    });
+
+    // Studio items
+    const itemsSnap = await getDocs(query(collection(db,"studioItems"), where("studioName","==", oldClean)));
+    await batchUpdateDocs(itemsSnap.docs, {
+      studioName: newClean,
+      updatedAt: serverTimestamp()
+    });
+
+    // Billing (customerName or studioName)
+    const billingByCustomer = await getDocs(query(collection(db,"billing"), where("customerName","==", oldClean)));
+    const billingByStudio = await getDocs(query(collection(db,"billing"), where("studioName","==", oldClean)));
+    const billingMap = new Map();
+    billingByCustomer.docs.forEach(d => billingMap.set(d.id, d));
+    billingByStudio.docs.forEach(d => billingMap.set(d.id, d));
+    const billingDocs = [...billingMap.values()];
+    await batchUpdateDocs(billingDocs, {
+      customerName: newClean,
+      studioName: newClean,
+      updatedAt: serverTimestamp()
+    });
+
+    // Customers (safety: any extra duplicates)
+    const custSnap = await getDocs(query(collection(db,"customers"), where("studioName","==", oldClean)));
+    await batchUpdateDocs(custSnap.docs, {
+      studioName: newClean,
+      customerName: newClean,
+      updatedAt: serverTimestamp()
+    });
+
+    return { updated: jobDocs.length + payDocs.length + itemsSnap.size + billingDocs.length + custSnap.size };
+  }
+
   /* ============================================
      STRICT ACCOUNTING-SAFE PAYMENT SYSTEM
      ============================================ */
@@ -469,6 +552,7 @@ function main() {
     clientsTableBody.innerHTML = "";
     cachedClients.forEach(c=>{
       if (!c) return;
+      if (c.deleteData) return;
       const matchStr = ((c.studioName||"") + "|" + (c.phone||"") + "|" + (c.city||"")).toLowerCase();
       if(q && !matchStr.includes(q)) return;
       const tr = document.createElement("tr");
@@ -511,6 +595,7 @@ function main() {
     const list = [...cachedClients].sort((a,b)=> (a.studioName||"").localeCompare(b.studioName||""));
     list.forEach(c=>{
       if (!c) return;
+      if (c.deleteData) return;
       const opt = document.createElement("option");
       opt.value = c.studioName || "";
       opt.textContent = c.studioName || "(Unnamed)";
@@ -536,6 +621,11 @@ function main() {
 
   async function openProfile(studioName){
     if (!studioName) return;
+    const cached = cachedClients.find(c => c && c.studioName === studioName);
+    if (cached?.deleteData) {
+      showToast("This studio is in Recycle Bin", "warning");
+      return;
+    }
     
     currentStudio = studioName;
     currentStudioNames = [studioName];
@@ -547,6 +637,10 @@ function main() {
       const d = custSnap.docs[0];
       currentCustomerDocId = d.id;
       const c = d.data();
+      if (c.deleteData) {
+        showToast("This studio is in Recycle Bin", "warning");
+        return;
+      }
       currentCustomerEmail = (c.email || "").toString();
       const names = [c.studioName, c.customerName, studioName]
         .map(v => (v || "").toString().trim())
@@ -1313,6 +1407,7 @@ function main() {
         const newEmail = (emailInput?.value || "").trim();
         const newPhone = (phoneInput?.value || "").trim();
         const newStudio = (studioNameInput?.value || "").trim();
+        const oldStudio = (currentStudio || "").trim();
 
         await updateDoc(doc(db,"customers", currentCustomerDocId), {
           studioName: studioNameInput?.value.trim() || "",
@@ -1350,9 +1445,18 @@ function main() {
           }
         }
         currentCustomerEmail = newEmail || oldEmail || "";
+
+        // If studio name changed, propagate it to all related records
+        if (oldStudio && newStudio && oldStudio !== newStudio) {
+          await renameStudioEverywhere(oldStudio, newStudio);
+          currentStudio = newStudio;
+          currentStudioNames = [newStudio, oldStudio];
+          startJobsListener();
+          startPaymentsListener();
+        }
       }
       // Trigger STRICT recalculation when customer data changes
-      await recalcPaymentsFIFO(currentStudio);
+      await recalcPaymentsFIFO(currentStudio || (studioNameInput?.value || "").trim());
       showToast("Customer saved");
     }
   });
@@ -1408,20 +1512,27 @@ function main() {
         updatedAt: serverTimestamp()
       });
 
-      // Helper to soft-delete docs
-      const softDeleteDocs = async (collectionName, fieldName, fieldValue) => {
-        const snap = await getDocs(query(collection(db, collectionName), where(fieldName, "==", fieldValue)));
-        await Promise.all(snap.docs.map(d => updateDoc(d.ref, {
+      // Helper to soft-delete docs (multi-field)
+      const softDeleteDocs = async (collectionName, fieldNames, fieldValue) => {
+        const names = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+        const snaps = await Promise.all(
+          names.map((fieldName) =>
+            getDocs(query(collection(db, collectionName), where(fieldName, "==", fieldValue)))
+          )
+        );
+        const docs = snaps.flatMap(s => s.docs);
+        await Promise.all(docs.map(d => updateDoc(d.ref, {
           deleteData: true,
           deletedAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         })));
       };
 
-      // Delete related data
-      await softDeleteDocs("jobs", "studioName", currentStudio);
-      await softDeleteDocs("payments", "studioName", currentStudio);
+      // Delete related data everywhere
+      await softDeleteDocs("jobs", ["studioName", "customerName"], currentStudio);
+      await softDeleteDocs("payments", ["studioName", "customerName"], currentStudio);
       await softDeleteDocs("studioItems", "studioName", currentStudio);
+      await softDeleteDocs("billing", ["studioName", "customerName"], currentStudio);
 
       showToast("Customer and all related data moved to Recycle Bin");
       if(profileSection) profileSection.classList.add("hidden"); 

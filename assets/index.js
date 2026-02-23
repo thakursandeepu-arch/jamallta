@@ -6,6 +6,23 @@ const ENABLE_MEDIA_FEED = true;
 
 const $ = (id) => document.getElementById(id);
 
+const ICONS = {
+  heart: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.5 1-1a5.5 5.5 0 0 0 0-7.8z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  heartFilled: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="M20.8 5.7a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.5 1-1a5.5 5.5 0 0 0 0-7.8z" fill="currentColor"/></svg>`,
+  comment: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="M20 15a4 4 0 0 1-4 4H8l-4 3V7a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  share: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="m21 3-9 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M21 3 14 21l-3-7-7-3z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  save: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="M6 4h12v16l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>`,
+  saveFilled: `<svg viewBox="0 0 24 24" aria-hidden="true" class="ig-icon"><path d="M6 4h12v16l-6-4-6 4z" fill="currentColor"/></svg>`
+};
+
+const setLikeIcon = (btn, liked) => {
+  btn.innerHTML = liked ? ICONS.heartFilled : ICONS.heart;
+};
+
+const setSaveIcon = (btn, saved) => {
+  btn.innerHTML = saved ? ICONS.saveFilled : ICONS.save;
+};
+
 const firebaseConfig = {
   apiKey: "AIzaSyAcHb-VHdM30fb9qSR4dzclmNTxXsTofIw",
   authDomain: "jamallta-films-2-27d2b.firebaseapp.com",
@@ -70,6 +87,8 @@ async function initMediaFeed() {
   const photosEl = $("portfolioPhotos");
   const videosEl = $("portfolioVideos");
   const reelsEl = $("portfolioReels");
+  const feedEl = $("portfolioFeed");
+  const storiesEl = $("portfolioStories");
   if (!photosEl || !videosEl || !reelsEl) return;
 
   try {
@@ -106,31 +125,58 @@ async function initMediaFeed() {
         reelsEl.innerHTML = `<p class="media-empty">No reels yet.</p>`;
       }
 
+      if (feedEl) feedEl.innerHTML = "";
+      if (storiesEl) storiesEl.innerHTML = "";
+
       const renderCard = (item) => {
         const card = document.createElement("div");
-        card.className = "media-card";
-        card.dataset.type = item.type || "photo";
-        if ((item.type || "photo") === "photo") {
+        card.className = "media-card ig-card";
+        const itemType = item.type || "photo";
+        card.dataset.type = itemType;
+        if (itemType === "photo") {
           card.classList.add("media-photo");
+        } else if (itemType === "video") {
+          card.classList.add("media-video");
+        } else if (itemType === "reel") {
+          card.classList.add("media-reel");
         }
+
+        const header = document.createElement("div");
+        header.className = "ig-header";
+        const avatar = document.createElement("div");
+        avatar.className = "ig-avatar";
+        avatar.textContent = "JF";
+        const hTitle = document.createElement("div");
+        hTitle.className = "ig-title";
+        hTitle.textContent = item.author || item.title || "Jamallta Films";
+        const hMeta = document.createElement("div");
+        hMeta.className = "ig-meta";
+        hMeta.textContent = "Jamallta Films";
+        const hText = document.createElement("div");
+        hText.appendChild(hTitle);
+        hText.appendChild(hMeta);
+        header.appendChild(avatar);
+        header.appendChild(hText);
 
         const thumb = document.createElement("div");
         thumb.className = "media-thumb";
 
-        const badge = document.createElement("span");
-        badge.className = "media-badge";
-        badge.textContent = (item.type || "photo").toUpperCase();
-        thumb.appendChild(badge);
-
         if (item.type === "video") {
           const video = document.createElement("video");
           video.src = item.url;
-          video.controls = true;
+          video.controls = false;
           video.preload = "metadata";
+          video.playsInline = true;
+          video.muted = false;
+          video.volume = 1;
+          video.addEventListener("click", () => {
+            if (video.paused) {
+              video.play();
+            } else {
+              video.pause();
+            }
+          });
           thumb.appendChild(video);
-          const overlay = document.createElement("div");
-          overlay.className = "play-overlay";
-          thumb.appendChild(overlay);
         } else {
           const img = document.createElement("img");
           img.src = item.url;
@@ -153,68 +199,153 @@ async function initMediaFeed() {
           desc.style.display = "none";
         }
 
-        if ((item.type || "photo") === "photo") {
-          const caption = document.createElement("div");
-          caption.className = "media-caption";
-          caption.appendChild(title);
-          caption.appendChild(desc);
-          thumb.appendChild(caption);
-        } else {
-          body.appendChild(title);
-          body.appendChild(desc);
-        }
+        body.appendChild(title);
+        body.appendChild(desc);
+
+        const actions = document.createElement("div");
+        actions.className = "ig-actions";
+
+        const likeBtn = document.createElement("button");
+        likeBtn.className = "ig-btn ig-like";
+        likeBtn.setAttribute("aria-label", "Like");
+        setLikeIcon(likeBtn, false);
+
+        const commentBtn = document.createElement("button");
+        commentBtn.className = "ig-btn";
+        commentBtn.setAttribute("aria-label", "Comment");
+        commentBtn.innerHTML = ICONS.comment;
+
+        const shareBtn = document.createElement("button");
+        shareBtn.className = "ig-btn";
+        shareBtn.setAttribute("aria-label", "Share");
+        shareBtn.innerHTML = ICONS.share;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ig-btn ig-save";
+        saveBtn.setAttribute("aria-label", "Save");
+        setSaveIcon(saveBtn, false);
+
+        const actionLeft = document.createElement("div");
+        actionLeft.className = "ig-actions-left";
+        actionLeft.appendChild(likeBtn);
+        actionLeft.appendChild(commentBtn);
+        actionLeft.appendChild(shareBtn);
+
+        const actionRight = document.createElement("div");
+        actionRight.className = "ig-actions-right";
+        actionRight.appendChild(saveBtn);
+
+        actions.appendChild(actionLeft);
+        actions.appendChild(actionRight);
+
+        const counts = document.createElement("div");
+        counts.className = "ig-counts";
+        const likeCount = document.createElement("span");
+        const baseLikes = Number(item.likes || item.likeCount || 0);
+        likeCount.textContent = `${baseLikes} likes`;
+        counts.appendChild(likeCount);
+
+        likeBtn.addEventListener("click", () => {
+          const liked = likeBtn.classList.toggle("is-liked");
+          setLikeIcon(likeBtn, liked);
+          const current = Number(likeCount.textContent.split(" ")[0]) || 0;
+          const next = liked ? current + 1 : Math.max(0, current - 1);
+          likeCount.textContent = `${next} likes`;
+        });
+        saveBtn.addEventListener("click", () => {
+          const saved = saveBtn.classList.toggle("is-saved");
+          setSaveIcon(saveBtn, saved);
+        });
 
         card.appendChild(thumb);
-        if ((item.type || "photo") !== "photo") {
-          card.appendChild(body);
-        }
+        card.appendChild(actions);
+        card.appendChild(counts);
+        card.appendChild(body);
 
         return card;
       };
 
       const renderReel = (item) => {
         const card = document.createElement("div");
-        card.className = "reel-card";
+        card.className = "reel-card ig-card reel-post";
 
         const thumb = document.createElement("div");
         thumb.className = "reel-thumb";
 
-        const badge = document.createElement("span");
-        badge.className = "media-badge";
-        badge.textContent = "REEL";
-        thumb.appendChild(badge);
-
         const video = document.createElement("video");
         video.src = item.url;
-        video.controls = true;
+        video.controls = false;
         video.preload = "metadata";
-        video.muted = true;
+        video.muted = false;
+        video.volume = 1;
         video.playsInline = true;
+        video.addEventListener("click", () => {
+          if (video.paused) {
+            video.play();
+          } else {
+            video.pause();
+          }
+        });
         thumb.appendChild(video);
 
-        const overlay = document.createElement("div");
-        overlay.className = "play-overlay";
-        thumb.appendChild(overlay);
+        const actions = document.createElement("div");
+        actions.className = "ig-actions";
 
-        const body = document.createElement("div");
-        body.className = "reel-body";
+        const likeBtn = document.createElement("button");
+        likeBtn.className = "ig-btn ig-like";
+        likeBtn.setAttribute("aria-label", "Like");
+        setLikeIcon(likeBtn, false);
 
-        const title = document.createElement("h3");
-        title.className = "media-title";
-        title.textContent = item.title || "Reel";
+        const commentBtn = document.createElement("button");
+        commentBtn.className = "ig-btn";
+        commentBtn.setAttribute("aria-label", "Comment");
+        commentBtn.innerHTML = ICONS.comment;
 
-        const desc = document.createElement("p");
-        desc.className = "media-desc";
-        desc.textContent = item.description || "";
-        if (!item.description) {
-          desc.style.display = "none";
-        }
+        const shareBtn = document.createElement("button");
+        shareBtn.className = "ig-btn";
+        shareBtn.setAttribute("aria-label", "Share");
+        shareBtn.innerHTML = ICONS.share;
 
-        body.appendChild(title);
-        body.appendChild(desc);
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "ig-btn ig-save";
+        saveBtn.setAttribute("aria-label", "Save");
+        setSaveIcon(saveBtn, false);
+
+        const actionLeft = document.createElement("div");
+        actionLeft.className = "ig-actions-left";
+        actionLeft.appendChild(likeBtn);
+        actionLeft.appendChild(commentBtn);
+        actionLeft.appendChild(shareBtn);
+
+        const actionRight = document.createElement("div");
+        actionRight.className = "ig-actions-right";
+        actionRight.appendChild(saveBtn);
+
+        actions.appendChild(actionLeft);
+        actions.appendChild(actionRight);
+
+        const counts = document.createElement("div");
+        counts.className = "ig-counts";
+        const likeCount = document.createElement("span");
+        const baseLikes = Number(item.likes || item.likeCount || 0);
+        likeCount.textContent = `${baseLikes} likes`;
+        counts.appendChild(likeCount);
+
+        likeBtn.addEventListener("click", () => {
+          const liked = likeBtn.classList.toggle("is-liked");
+          setLikeIcon(likeBtn, liked);
+          const current = Number(likeCount.textContent.split(" ")[0]) || 0;
+          const next = liked ? current + 1 : Math.max(0, current - 1);
+          likeCount.textContent = `${next} likes`;
+        });
+        saveBtn.addEventListener("click", () => {
+          const saved = saveBtn.classList.toggle("is-saved");
+          setSaveIcon(saveBtn, saved);
+        });
 
         card.appendChild(thumb);
-        card.appendChild(body);
+        card.appendChild(actions);
+        card.appendChild(counts);
 
         return card;
       };
@@ -300,122 +431,6 @@ initSiteCms();
 initMediaFeed();
 
 /* =====================================
-   RAZORPAY PAYMENTS
-===================================== */
-const PAYMENTS_API = {
-  createOrder: "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/createRazorpayOrder",
-  verifyPayment: "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/verifyRazorpayPayment"
-};
-
-const payNowBtn = $("payNowBtn");
-const payAmountInput = $("payAmount");
-const paymentStatus = $("paymentStatus");
-
-function setPaymentStatus(message, type = "") {
-  if (!paymentStatus) return;
-  paymentStatus.textContent = message || "";
-  paymentStatus.classList.remove("success", "error");
-  if (type) paymentStatus.classList.add(type);
-}
-
-async function createOrder(amountInr) {
-  const response = await fetch(PAYMENTS_API.createOrder, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      amount: amountInr,
-      currency: "INR",
-      receipt: `jf_${Date.now()}`
-    })
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || "Order creation failed");
-  }
-  return data;
-}
-
-async function verifyPayment(details) {
-  const response = await fetch(PAYMENTS_API.verifyPayment, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(details)
-  });
-
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data?.error || "Verification failed");
-  }
-  return data;
-}
-
-async function startRazorpayCheckout() {
-  if (!window.Razorpay) {
-    setPaymentStatus("Razorpay script not loaded. Please refresh.", "error");
-    return;
-  }
-
-  const amount = Number(payAmountInput?.value || 0);
-  if (!Number.isFinite(amount) || amount <= 0) {
-    setPaymentStatus("Enter a valid amount in INR.", "error");
-    return;
-  }
-
-  try {
-    if (payNowBtn) payNowBtn.disabled = true;
-    setPaymentStatus("Creating order...", "");
-
-    const order = await createOrder(amount);
-
-    const options = {
-      key: order.keyId,
-      amount: order.amount,
-      currency: order.currency,
-      name: "Jamallta Films",
-      description: "Video editing payment",
-      order_id: order.orderId,
-      handler: async function (response) {
-        try {
-          setPaymentStatus("Verifying payment...", "");
-          const result = await verifyPayment({
-            order_id: response.razorpay_order_id,
-            payment_id: response.razorpay_payment_id,
-            signature: response.razorpay_signature
-          });
-
-          if (result.verified) {
-            setPaymentStatus("Payment successful. Thank you!", "success");
-          } else {
-            setPaymentStatus("Payment verification failed.", "error");
-          }
-        } catch (err) {
-          setPaymentStatus(err?.message || "Verification failed.", "error");
-        } finally {
-          if (payNowBtn) payNowBtn.disabled = false;
-        }
-      },
-      theme: { color: "#c9a347" }
-    };
-
-    const rzp = new Razorpay(options);
-    rzp.on("payment.failed", function (resp) {
-      const msg = resp?.error?.description || "Payment failed.";
-      setPaymentStatus(msg, "error");
-      if (payNowBtn) payNowBtn.disabled = false;
-    });
-    rzp.open();
-  } catch (err) {
-    setPaymentStatus(err?.message || "Payment failed.", "error");
-    if (payNowBtn) payNowBtn.disabled = false;
-  }
-}
-
-if (payNowBtn) {
-  payNowBtn.addEventListener("click", startRazorpayCheckout);
-}
-
-/* =====================================
    SMOOTH SCROLL
 ===================================== */
 document.querySelectorAll('a[href^="#"]').forEach(link => {
@@ -425,4 +440,225 @@ document.querySelectorAll('a[href^="#"]').forEach(link => {
     e.preventDefault();
     target.scrollIntoView({ behavior: "smooth" });
   });
+});
+
+/* =====================================
+   SINGLE VIDEO PLAY AT A TIME
+===================================== */
+document.addEventListener("play", (e) => {
+  const current = e.target;
+  if (!current || current.tagName !== "VIDEO") return;
+  document.querySelectorAll("video").forEach((vid) => {
+    if (vid !== current && !vid.paused) {
+      vid.pause();
+    }
+  });
+}, true);
+
+/* =====================================
+   MOBILE FILTER (HOME / REELS)
+===================================== */
+const photosBlock = document.getElementById("photosBlock");
+const videosBlock = document.getElementById("videosBlock");
+const reelsBlock = document.getElementById("reelsBlock");
+const navHome = document.getElementById("navHome");
+const navReels = document.getElementById("navReels");
+const isMobileView = () => window.matchMedia("(max-width: 700px)").matches;
+
+const shuffleGrid = (grid) => {
+  if (!grid) return;
+  const items = Array.from(grid.children);
+  for (let i = items.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  items.forEach((item) => grid.appendChild(item));
+};
+
+const setVisibility = (showPhotos, showVideos, showReels) => {
+  if (!isMobileView()) return;
+  if (photosBlock) photosBlock.style.display = showPhotos ? "block" : "none";
+  if (videosBlock) videosBlock.style.display = showVideos ? "block" : "none";
+  if (reelsBlock) reelsBlock.style.display = showReels ? "block" : "none";
+};
+
+if (navHome) {
+  navHome.addEventListener("click", () => {
+    setVisibility(true, false, false);
+  });
+}
+
+if (navReels) {
+  navReels.addEventListener("click", () => {
+    setVisibility(false, true, true);
+    shuffleGrid(document.getElementById("portfolioVideos"));
+    shuffleGrid(document.getElementById("portfolioReels"));
+  });
+}
+
+window.addEventListener("resize", () => {
+  if (isMobileView()) return;
+  if (photosBlock) photosBlock.style.display = "block";
+  if (videosBlock) videosBlock.style.display = "block";
+  if (reelsBlock) reelsBlock.style.display = "block";
+});
+
+/* =====================================
+   LIGHTBOX (PHOTOS)
+===================================== */
+const lightbox = document.getElementById("lightbox");
+const lightboxImg = document.getElementById("lightboxImage");
+const lightboxClose = document.querySelector(".lightbox-close");
+const lightboxPrev = document.querySelector(".lightbox-nav.prev");
+const lightboxNext = document.querySelector(".lightbox-nav.next");
+let lightboxImages = [];
+let lightboxIndex = -1;
+
+const setLightboxImage = (index) => {
+  if (!lightboxImg || !lightboxImages.length) return;
+  lightboxIndex = (index + lightboxImages.length) % lightboxImages.length;
+  const img = lightboxImages[lightboxIndex];
+  if (lightbox) lightbox.classList.add("is-switching");
+  const newSrc = img.src;
+  const newAlt = img.alt || "Full view";
+  lightboxImg.onload = () => {
+    if (lightbox) lightbox.classList.remove("is-switching");
+  };
+  lightboxImg.src = newSrc;
+  lightboxImg.alt = newAlt;
+};
+
+const openLightbox = (src, alt, index) => {
+  if (!lightbox || !lightboxImg) return;
+  if (typeof index === "number") {
+    setLightboxImage(index);
+  } else {
+    lightboxImg.src = src;
+    lightboxImg.alt = alt || "Full view";
+  }
+  lightbox.classList.add("is-open");
+  lightbox.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+};
+
+const closeLightbox = () => {
+  if (!lightbox || !lightboxImg) return;
+  lightbox.classList.remove("is-open");
+  lightbox.setAttribute("aria-hidden", "true");
+  lightboxImg.src = "";
+  document.body.style.overflow = "";
+};
+
+if (lightbox) {
+  lightbox.addEventListener("click", (e) => {
+    if (e.target === lightbox) closeLightbox();
+  });
+}
+if (lightboxClose) {
+  lightboxClose.addEventListener("click", closeLightbox);
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") setLightboxImage(lightboxIndex - 1);
+  if (e.key === "ArrowRight") setLightboxImage(lightboxIndex + 1);
+});
+
+document.addEventListener("click", (e) => {
+  const img = e.target.closest(".media-thumb img");
+  if (!img) return;
+  lightboxImages = Array.from(document.querySelectorAll(".media-thumb img"));
+  lightboxIndex = lightboxImages.indexOf(img);
+  openLightbox(img.src, img.alt, lightboxIndex);
+});
+
+if (lightboxPrev) {
+  lightboxPrev.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLightboxImage(lightboxIndex - 1);
+  });
+}
+if (lightboxNext) {
+  lightboxNext.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setLightboxImage(lightboxIndex + 1);
+  });
+}
+
+/* =====================================
+   REEL VIEWER (VIDEOS/REELS ON MOBILE)
+===================================== */
+const reelViewer = document.getElementById("reelViewer");
+const reelPlayer = document.getElementById("reelPlayer");
+const reelClose = document.querySelector(".reel-close");
+let reelList = [];
+let reelIndex = -1;
+let startY = 0;
+
+const isMobile = () => window.matchMedia("(max-width: 700px)").matches;
+
+const setReel = (index) => {
+  if (!reelPlayer || !reelList.length) return;
+  reelIndex = (index + reelList.length) % reelList.length;
+  const src = reelList[reelIndex]?.src || "";
+  if (!src) return;
+  reelPlayer.src = src;
+  reelPlayer.muted = false;
+  reelPlayer.volume = 1;
+  reelPlayer.play().catch(() => {});
+};
+
+const openReelViewer = (videos, index) => {
+  if (!reelViewer || !reelPlayer) return;
+  reelList = videos;
+  reelViewer.classList.add("is-open");
+  reelViewer.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+  setReel(index);
+};
+
+const closeReelViewer = () => {
+  if (!reelViewer || !reelPlayer) return;
+  reelViewer.classList.remove("is-open");
+  reelViewer.setAttribute("aria-hidden", "true");
+  reelPlayer.pause();
+  reelPlayer.src = "";
+  document.body.style.overflow = "";
+};
+
+if (reelClose) {
+  reelClose.addEventListener("click", closeReelViewer);
+}
+
+if (reelViewer) {
+  reelViewer.addEventListener("click", (e) => {
+    if (e.target === reelViewer) closeReelViewer();
+  });
+  reelViewer.addEventListener("touchstart", (e) => {
+    startY = e.touches[0].clientY;
+  });
+  reelViewer.addEventListener("touchend", (e) => {
+    const endY = e.changedTouches[0].clientY;
+    const delta = endY - startY;
+    if (Math.abs(delta) < 40) return;
+    if (delta < 0) setReel(reelIndex + 1);
+    if (delta > 0) setReel(reelIndex - 1);
+  });
+  reelViewer.addEventListener("click", () => {
+    if (!reelPlayer) return;
+    if (reelPlayer.paused) {
+      reelPlayer.play().catch(() => {});
+    } else {
+      reelPlayer.pause();
+    }
+  });
+}
+
+document.addEventListener("click", (e) => {
+  if (!isMobile()) return;
+  const videoEl = e.target.closest(".media-thumb video, .reel-thumb video");
+  if (!videoEl) return;
+  e.preventDefault();
+  const allVideos = Array.from(document.querySelectorAll(".media-thumb video, .reel-thumb video"));
+  const idx = allVideos.indexOf(videoEl);
+  openReelViewer(allVideos, idx);
 });
