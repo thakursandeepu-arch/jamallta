@@ -54,6 +54,8 @@ const callBulkSyncAuth = async (payload) => {
   return res?.data || {};
 };
 const normalize = (v) => (v || "").toString().trim().toLowerCase();
+const normalizeLoose = (v) => normalize(v).replace(/[^a-z0-9]+/g, "").replace(/[aeiou]/g, "");
+const uniqueStrings = (arr) => [...new Set((arr || []).map(v => (v || "").toString().trim()).filter(v => v))];
 
 /* Wait for DOM ready, then run everything */
 if (document.readyState === "loading") {
@@ -144,6 +146,52 @@ function main() {
   /* escape helper */
   function escapeHtml(s){ if(!s && s !== 0) return ""; return s.toString().replace(/[&<>"']/g, (m)=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])); }
 
+  function buildStudioNames(primary, customerDoc){
+    const aliases = Array.isArray(customerDoc?.aliases) ? customerDoc.aliases : [];
+    const names = [
+      primary,
+      customerDoc?.studioName,
+      customerDoc?.customerName,
+      ...aliases
+    ];
+    return uniqueStrings(names);
+  }
+
+  async function fetchDocsByNames(colName, fields, names){
+    const clean = uniqueStrings(names);
+    if (!clean.length) return [];
+    const map = new Map();
+    const promises = [];
+    clean.forEach(n => {
+      fields.forEach(f => {
+        promises.push(getDocs(query(collection(db, colName), where(f, "==", n))));
+      });
+    });
+    const snaps = await Promise.all(promises);
+    snaps.forEach(s => {
+      s.docs.forEach(d => map.set(d.id, d));
+    });
+    return [...map.values()].map(d => ({ id: d.id, ...d.data() }));
+  }
+
+  async function fetchDocsByLooseMatch(colName, names){
+    const keys = (names || []).map(normalizeLoose).filter(Boolean);
+    if (!keys.length) return [];
+    const snap = await getDocs(collection(db, colName));
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(x => {
+        if (!x || x.deleteData) return false;
+        const s1 = normalizeLoose(x.studioName);
+        const s2 = normalizeLoose(x.customerName);
+        if (!s1 && !s2) return false;
+        return keys.some(k =>
+          (s1 && (s1.includes(k) || k.includes(s1))) ||
+          (s2 && (s2.includes(k) || k.includes(s2)))
+        );
+      });
+  }
+
   /* ---------------- STUDIO RENAME (propagate everywhere) ---------------- */
   async function batchUpdateDocs(docs, data){
     if (!docs || !docs.length) return 0;
@@ -227,6 +275,38 @@ function main() {
     return { updated: jobDocs.length + payDocs.length + itemsSnap.size + billingDocs.length + custSnap.size };
   }
 
+  async function normalizeStudioEverywhereLoose(targetName, aliases = []){
+    const target = (targetName || "").trim();
+    if (!target) return { updated: 0 };
+    const keys = uniqueStrings([target, ...aliases]).map(normalizeLoose).filter(Boolean);
+    if (!keys.length) return { updated: 0 };
+
+    const matchLoose = (v) => {
+      const s = normalizeLoose(v);
+      if (!s) return false;
+      return keys.some(k => s.includes(k) || k.includes(s));
+    };
+
+    const toFix = async (col, fields, extraData = {}) => {
+      const snap = await getDocs(collection(db, col));
+      const docs = snap.docs.filter(d => {
+        const data = d.data() || {};
+        return fields.some(f => matchLoose(data[f]));
+      });
+      if (!docs.length) return 0;
+      await batchUpdateDocs(docs, { ...extraData, studioName: target, customerName: target, updatedAt: serverTimestamp() });
+      return docs.length;
+    };
+
+    const jobsUpdated = await toFix("jobs", ["studioName","customerName"]);
+    const paymentsUpdated = await toFix("payments", ["studioName","customerName"]);
+    const itemsUpdated = await toFix("studioItems", ["studioName"], { customerName: target });
+    const billingUpdated = await toFix("billing", ["studioName","customerName"]);
+    const custUpdated = await toFix("customers", ["studioName","customerName"]);
+
+    return { updated: jobsUpdated + paymentsUpdated + itemsUpdated + billingUpdated + custUpdated };
+  }
+
   /* ============================================
      STRICT ACCOUNTING-SAFE PAYMENT SYSTEM
      ============================================ */
@@ -299,33 +379,35 @@ function main() {
    * CENTRAL FUNCTION: Recalculate payments for a studio using FIFO logic
    * STRICT ACCOUNTING-SAFE IMPLEMENTATION (RULE #1)
    */
-  async function recalcPaymentsFIFO(studioName) {
+  async function recalcPaymentsFIFO(studioName, studioNames = null, customerId = null) {
     try {
-      if (!studioName) return false;
+      const names = uniqueStrings((studioNames && studioNames.length ? studioNames : (studioName ? [studioName] : [])));
+      if (!names.length) return false;
 
       console.log(`?? STRICT RECALCULATION for: ${studioName}`);
       
-      // 1. Get all active jobs for this studio
-      const jobsQuery = query(
-        collection(db, "jobs"),
-        where("studioName", "==", studioName)
-      );
-      const jobsSnap = await getDocs(jobsQuery);
+      // 1. Get all active jobs for this studio (support aliases)
+      let allJobs = await fetchDocsByNames("jobs", ["studioName","customerName"], names);
+      if (customerId) {
+        try {
+          const snap = await getDocs(query(collection(db,"jobs"), where("customerId","==", customerId)));
+          const byId = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          allJobs = allJobs.concat(byId);
+        } catch (e) {
+          console.error("CustomerId job fetch failed:", e);
+        }
+      }
+      if (!allJobs.length) {
+        allJobs = await fetchDocsByLooseMatch("jobs", names);
+      }
+      allJobs = allJobs.filter(job => job);
       
-      const allJobs = jobsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(job => job);
-      
-      // 2. Get all active payments for this studio
-      const paymentsQuery = query(
-        collection(db, "payments"),
-        where("studioName", "==", studioName)
-      );
-      const paymentsSnap = await getDocs(paymentsQuery);
-      
-      const allPayments = paymentsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(payment => payment && !payment.deleteData);
+      // 2. Get all active payments for this studio (support aliases)
+      let allPayments = await fetchDocsByNames("payments", ["studioName","customerName"], names);
+      if (!allPayments.length) {
+        allPayments = await fetchDocsByLooseMatch("payments", names);
+      }
+      allPayments = allPayments.filter(payment => payment && !payment.deleteData);
       
       // 3. Calculate total payment amount received (STRICT RULE #2)
       const totalPaymentAmount = allPayments.reduce((sum, payment) => {
@@ -437,16 +519,11 @@ function main() {
       }
       
       // 8. Update customer record
-      const customerQuery = query(
-        collection(db, "customers"),
-        where("studioName", "==", studioName)
-      );
-      const customerSnap = await getDocs(customerQuery);
-      
-      if (!customerSnap.empty && customerSnap.docs[0]) {
-        const customerDoc = customerSnap.docs[0];
+      const customerDocs = await fetchDocsByNames("customers", ["studioName","customerName"], names);
+      if (customerDocs && customerDocs[0]) {
+        const customerDoc = customerDocs[0];
         const customerId = customerDoc.id;
-        const customerData = customerDoc.data();
+        const customerData = customerDoc;
         
         // Calculate new balance (total job amount - total paid to jobs)
         const newBalance = Math.max(0, totalJobAmount - totalPaidToJobs);
@@ -533,7 +610,9 @@ function main() {
         
         // Trigger central recalculation
         if (jobData.studioName) {
-          await recalcPaymentsFIFO(jobData.studioName);
+          const names = (jobData.studioName === currentStudio) ? currentStudioNames : null;
+          const custId = (jobData.studioName === currentStudio) ? currentCustomerDocId : null;
+          await recalcPaymentsFIFO(jobData.studioName, names, custId);
         }
       }
     } catch (error) {
@@ -660,10 +739,7 @@ function main() {
         return;
       }
       currentCustomerEmail = (c.email || "").toString();
-      const names = [c.studioName, c.customerName, studioName]
-        .map(v => (v || "").toString().trim())
-        .filter(v => v);
-      currentStudioNames = [...new Set(names)];
+      currentStudioNames = buildStudioNames(studioName, c);
       currentAdvanceAmount = Number(c.advanceAmount || 0);
       if(studioNameInput) studioNameInput.value = c.studioName || "";
       if(phoneInput) phoneInput.value = c.phone || "";
@@ -685,7 +761,7 @@ function main() {
     }
 
     // Run STRICT FIFO calculation on profile open
-    await recalcPaymentsFIFO(studioName);
+    await recalcPaymentsFIFO(studioName, currentStudioNames, currentCustomerDocId);
     
     startJobsListener();
     startPaymentsListener();
@@ -749,13 +825,14 @@ function main() {
     (async () => {
       try {
         const snap = await getDocs(collection(db, "jobs"));
-        const nameKeys = names.map(normalize).filter(Boolean);
+        const nameKeys = names.map(normalizeLoose).filter(Boolean);
         fallbackJobs = snap.docs
           .map(d => ({ id: d.id, ...d.data() }))
           .filter(j => {
             if (j.deleteData) return false;
-            const s1 = normalize(j.studioName);
-            const s2 = normalize(j.customerName);
+            if (currentCustomerDocId && j.customerId === currentCustomerDocId) return true;
+            const s1 = normalizeLoose(j.studioName);
+            const s2 = normalizeLoose(j.customerName);
             if (!s1 && !s2) return false;
             return nameKeys.some(nk =>
               (s1 && (s1.includes(nk) || nk.includes(s1))) ||
@@ -1136,7 +1213,9 @@ function main() {
       // Trigger STRICT recalculation
       const affectedStudio = job.studioName || currentStudio;
       if(affectedStudio){
-        await recalcPaymentsFIFO(affectedStudio);
+        const names = (affectedStudio === currentStudio) ? currentStudioNames : null;
+        const custId = (affectedStudio === currentStudio) ? currentCustomerDocId : null;
+        await recalcPaymentsFIFO(affectedStudio, names, custId);
       }
 
       showToast("Job moved to Recycle Bin");
@@ -1158,15 +1237,18 @@ function main() {
   function startPaymentsListener(){
     if(paymentsUnsub) paymentsUnsub();
     if(!currentStudio) return;
-    const qPays = query(collection(db,"payments"), where("studioName","==", currentStudio));
-    paymentsUnsub = onSnapshot(qPays, async snap=>{
-      if(!paymentsList) return;
-      paymentsList.innerHTML = "";
-      let count=0, totalAmt=0;
-      const arr = snap.docs
-        .map(d => ({ id:d.id, ...d.data() }))
-        .filter(x => x && !x.deleteData)
-        .sort((a,b)=>{
+    const names = uniqueStrings(currentStudioNames || [currentStudio]);
+    if (!names.length) return;
+    let buckets = [];
+    let fallbackPayments = [];
+
+    const mergePayments = () => {
+      const map = new Map();
+      const all = buckets.flat().concat(fallbackPayments || []);
+      all.forEach(p => {
+        if (p && !p.deleteData) map.set(p.id, p);
+      });
+      const arr = [...map.values()].sort((a,b)=>{
         const ta = (a.createdAt && a.createdAt.seconds) ? a.createdAt.seconds : (a.createdAt? new Date(a.createdAt).getTime()/1000 : 0);
         const tb = (b.createdAt && b.createdAt.seconds) ? b.createdAt.seconds : (b.createdAt? new Date(b.createdAt).getTime()/1000 : 0);
         return tb - ta;
@@ -1175,32 +1257,60 @@ function main() {
       if (currentJobs && currentJobs.length) {
         renderJobsFromArray(currentJobs);
       }
+      if(!paymentsList) return;
+      paymentsList.innerHTML = "";
       if(arr.length===0){ 
-        paymentsList.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px">No payments</td></tr>`; 
+        paymentsList.innerHTML = `<tr><td colspan=\"3\" style=\"text-align:center;padding:20px\">No payments</td></tr>`; 
         if(paymentsCount) paymentsCount.textContent="0 payments"; 
         updateBalanceFromData();
         return; 
       }
-      
+      let count=0, totalAmt=0;
       arr.forEach(p=>{
         if (!p) return;
-        
         count++; 
         totalAmt += Number(p.amount||0);
         const dateStr = p.createdAt && p.createdAt.seconds ? p.createdAt.toDate().toLocaleDateString() : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "�");
         const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${dateStr}</td><td class="text-success">\u20B9${p.amount}</td><td>${escapeHtml(p.note||"�")}</td>`;
-        
+        tr.innerHTML = `<td>${dateStr}</td><td class=\"text-success\">\u20B9${p.amount}</td><td>${escapeHtml(p.note||"�")}</td>`;
         paymentsList.appendChild(tr);
       });
-      
       if(paymentsCount) paymentsCount.textContent = `${count} payments � Total \u20B9${totalAmt}`;
       updateBalanceFromData();
-      
-      // Note: We don't trigger recalculation here because
-      // the payment listener will fire when payments change
-      // and the onSnapshot will handle it
+    };
+
+    const unsubs = [];
+    const addQuery = (field, value, idx) => {
+      const q = query(collection(db,"payments"), where(field,"==", value));
+      const unsub = onSnapshot(q, snap => {
+        buckets[idx] = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+        mergePayments();
+      });
+      unsubs.push(unsub);
+    };
+
+    const seen = new Set();
+    let idx = 0;
+    names.forEach(n => {
+      const keyA = `studioName:${n}`;
+      if (!seen.has(keyA)) { seen.add(keyA); addQuery("studioName", n, idx++); }
+      const keyB = `customerName:${n}`;
+      if (!seen.has(keyB)) { seen.add(keyB); addQuery("customerName", n, idx++); }
     });
+    if (currentCustomerDocId) {
+      const keyC = `customerId:${currentCustomerDocId}`;
+      if (!seen.has(keyC)) { seen.add(keyC); addQuery("customerId", currentCustomerDocId, idx++); }
+    }
+    paymentsUnsub = () => { unsubs.forEach(u => u()); };
+
+    (async () => {
+      try {
+        fallbackPayments = await fetchDocsByLooseMatch("payments", names);
+        mergePayments();
+      } catch (e) {
+        console.error("Fallback payment fetch failed:", e);
+      }
+    })();
   }
 
   function updateBalanceFromData(){
@@ -1248,7 +1358,7 @@ function main() {
             source: "payment_add",
           });
           // Trigger STRICT recalculation
-          await recalcPaymentsFIFO(currentStudio);
+          await recalcPaymentsFIFO(currentStudio, currentStudioNames, currentCustomerDocId);
         });
       }
     }
@@ -1281,7 +1391,7 @@ function main() {
     showToast("Payment added");
     
     // Trigger STRICT recalculation
-    await recalcPaymentsFIFO(currentStudio);
+    await recalcPaymentsFIFO(currentStudio, currentStudioNames, currentCustomerDocId);
   });
 
   /* ---------------- ITEMS (CRITICAL) ---------------- */
@@ -1383,7 +1493,7 @@ function main() {
     showToast(`${added} item(s) saved`);
     
     // Trigger STRICT recalculation
-    await recalcPaymentsFIFO(currentStudio);
+    await recalcPaymentsFIFO(currentStudio, currentStudioNames, currentCustomerDocId);
   });
 
   /* ---------------- EDIT / SAVE CUSTOMER ---------------- */
@@ -1484,9 +1594,14 @@ function main() {
           startJobsListener();
           startPaymentsListener();
         }
+        // Optional: fix any loose/mismatched names across collections
+        if (confirm("Fix studio name everywhere for old/mismatched entries?")) {
+          const aliasList = uniqueStrings([oldStudio, currentStudio, ...(currentStudioNames || [])]);
+          await normalizeStudioEverywhereLoose(newStudio || currentStudio, aliasList);
+        }
       }
       // Trigger STRICT recalculation when customer data changes
-      await recalcPaymentsFIFO(currentStudio || (studioNameInput?.value || "").trim());
+      await recalcPaymentsFIFO(currentStudio || (studioNameInput?.value || "").trim(), currentStudioNames, currentCustomerDocId);
       showToast("Customer saved");
     }
   });
@@ -2092,8 +2207,28 @@ function main() {
       if(fromTs > toTs) return showToast("From date must be before To date","warning");
     }
 
-    const snaps = await getDocs(query(collection(db,"jobs"), where("studioName","==", selectedStudio)));
-    const jobs = snaps.docs.map(d=> ({ id:d.id, ...d.data() }))
+    let clientInfo = cachedClients.find(c=> c.studioName === selectedStudio);
+    if(!clientInfo){
+      const custDocs = await fetchDocsByNames("customers", ["studioName","customerName"], [selectedStudio]);
+      if(custDocs && custDocs[0]) clientInfo = custDocs[0];
+    }
+    const studioNames = buildStudioNames(selectedStudio, clientInfo);
+    const selectedCustomerId = clientInfo?._id || clientInfo?.id || currentCustomerDocId || null;
+
+    let jobs = await fetchDocsByNames("jobs", ["studioName","customerName"], studioNames);
+    if (selectedCustomerId) {
+      try {
+        const snap = await getDocs(query(collection(db,"jobs"), where("customerId","==", selectedCustomerId)));
+        const byId = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        jobs = jobs.concat(byId);
+      } catch (e) {
+        console.error("CustomerId job fetch failed (PDF):", e);
+      }
+    }
+    if (!jobs.length) {
+      jobs = await fetchDocsByLooseMatch("jobs", studioNames);
+    }
+    jobs = jobs
       .filter(j=> j)
       .map(j=>{
         const ts = parseJobDateToTs(j.date);
@@ -2114,12 +2249,6 @@ function main() {
 
     if(!jobs.length) return showToast("No jobs in selected date range","warning");
 
-    // client details (for header + body)
-    let clientInfo = cachedClients.find(c=> c.studioName === selectedStudio);
-    if(!clientInfo){
-      const custSnap = await getDocs(query(collection(db,"customers"), where("studioName","==", selectedStudio)));
-      if(!custSnap.empty && custSnap.docs[0]) clientInfo = custSnap.docs[0].data();
-    }
     // Payments: include 10 days before oldest job if unpaid/partial selected
     let payments = [];
     const includeExtraPayments = payFilter.has("unpaid") || payFilter.has("partial");
@@ -2131,9 +2260,11 @@ function main() {
       const tenDaysBefore = oldestTs - tenDays;
       payStartTs = payStartTs == null ? tenDaysBefore : Math.min(payStartTs, tenDaysBefore);
     }
-    const paySnap = await getDocs(query(collection(db,"payments"), where("studioName","==", selectedStudio)));
-    payments = paySnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
+    let paymentsAll = await fetchDocsByNames("payments", ["studioName","customerName"], studioNames);
+    if (!paymentsAll.length) {
+      paymentsAll = await fetchDocsByLooseMatch("payments", studioNames);
+    }
+    payments = paymentsAll
       .filter(p => p && !p.deleteData)
       .filter(p => {
         if (payStartTs == null && payEndTs == null) return true;
@@ -2183,25 +2314,33 @@ function main() {
   if (typeof window !== 'undefined') {
     // Expose function for other modules to trigger recalculation
     window.triggerPaymentRecalc = async (studioName) => {
-      await recalcPaymentsFIFO(studioName);
+      const names = (studioName === currentStudio) ? currentStudioNames : null;
+      const custId = (studioName === currentStudio) ? currentCustomerDocId : null;
+      await recalcPaymentsFIFO(studioName, names, custId);
     };
     
     // Listen for custom events from other modules
     document.addEventListener('jobUpdated', async (e) => {
       if (e.detail && e.detail.studioName) {
-        await recalcPaymentsFIFO(e.detail.studioName);
+        const names = (e.detail.studioName === currentStudio) ? currentStudioNames : null;
+        const custId = (e.detail.studioName === currentStudio) ? currentCustomerDocId : null;
+        await recalcPaymentsFIFO(e.detail.studioName, names, custId);
       }
     });
     
     document.addEventListener('paymentAdded', async (e) => {
       if (e.detail && e.detail.studioName) {
-        await recalcPaymentsFIFO(e.detail.studioName);
+        const names = (e.detail.studioName === currentStudio) ? currentStudioNames : null;
+        const custId = (e.detail.studioName === currentStudio) ? currentCustomerDocId : null;
+        await recalcPaymentsFIFO(e.detail.studioName, names, custId);
       }
     });
     
     document.addEventListener('itemsUpdated', async (e) => {
       if (e.detail && e.detail.studioName) {
-        await recalcPaymentsFIFO(e.detail.studioName);
+        const names = (e.detail.studioName === currentStudio) ? currentStudioNames : null;
+        const custId = (e.detail.studioName === currentStudio) ? currentCustomerDocId : null;
+        await recalcPaymentsFIFO(e.detail.studioName, names, custId);
       }
     });
   }
@@ -2232,3 +2371,4 @@ function main() {
     if (raw.startsWith("+") && digits.length >= 8) return `+${digits}`;
     return "";
   }
+

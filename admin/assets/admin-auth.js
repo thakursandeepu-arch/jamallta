@@ -1,7 +1,7 @@
 // admin-auth.js
 // 🔐 Admin Security Guard – FINAL
 
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db } from "../../login/assets/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
@@ -11,7 +11,7 @@ const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLow
 /* ===== REDIRECT TO LOGIN ===== */
 function redirectToLogin() {
   console.warn("[admin-auth] redirecting to login");
-  window.location.replace("/index.html");
+  window.location.replace("../../index.html");
 }
 
 /* ===== CHECK USER ROLE ===== */

@@ -209,7 +209,6 @@ function countWorkingDays(start, end) {
     cursor.setDate(cursor.getDate() + 1);
   }
   return count;
-}  return count;
 }
 
 function normalizePhoneE164(raw) {
