@@ -1484,19 +1484,20 @@ async function saveEmployee() {
 
   try {
     const oldEmail = currentEmpEmail || "";
+    const authPhone = payload.phoneE164 || "";
     if (!currentID) {
       const authResult = await ensureAuthUser({
         oldEmail: "",
         newEmail: payload.email,
-        phone: payload.phone,
+        phone: authPhone,
         displayName: payload.fullName
       });
       if (!authResult.ok) {
         console.error("Auth user create failed:", authResult.error);
-        setMessage("Auth create failed. Check email or permissions.", true);
-        return;
+        showToast("Auth create failed. Saved employee only.", true);
+      } else {
+        await sendResetIfCreated(authResult, payload.email);
       }
-      await sendResetIfCreated(authResult, payload.email);
       payload.createdAt = serverTimestamp();
       const ref = await addDoc(collection(db, "employees"), payload);
       currentID = ref.id;
@@ -1512,15 +1513,15 @@ async function saveEmployee() {
       const authResult = await ensureAuthUser({
         oldEmail,
         newEmail: payload.email,
-        phone: payload.phone,
+        phone: authPhone,
         displayName: payload.fullName
       });
       if (!authResult.ok) {
         console.error("Auth user update failed:", authResult.error);
-        setMessage("Auth update failed. Check email or permissions.", true);
-        return;
+        showToast("Auth update failed. Saved employee only.", true);
+      } else {
+        await sendResetIfCreated(authResult, payload.email);
       }
-      await sendResetIfCreated(authResult, payload.email);
       await updateDoc(doc(db, "employees", currentID), payload);
       showToast("Team member updated");
       await createNotification({
