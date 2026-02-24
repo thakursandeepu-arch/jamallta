@@ -5,7 +5,11 @@ import {
   onSnapshot,
   addDoc,
   updateDoc,
-  doc
+  doc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import {
   getAuth,
@@ -47,6 +51,12 @@ const clientsBody = document.getElementById("clientsBody");
 const jobModal = document.getElementById("jobModal");
 const jobInfo = document.getElementById("jobInfo");
 const itemsBody = document.getElementById("itemsBody");
+const itemSelectSearch = document.getElementById("itemSelectSearch");
+const itemSuggestions = document.getElementById("itemSuggestions");
+const itemSelect = document.getElementById("itemSelect");
+const itemQtyInput = document.getElementById("itemQtyInput");
+const itemPriceInput = document.getElementById("itemPriceInput");
+const addItemAdminBtn = document.getElementById("addItemAdminBtn");
 const editProject = document.getElementById("editProject");
 const editReady = document.getElementById("editReady");
 const editDeliver = document.getElementById("editDeliver");
@@ -68,6 +78,164 @@ const studioList = null;
 let allJobs = [];
 let allStudios = [];
 let currentJobId = null;
+let currentJobItems = [];
+let currentJobData = null;
+let currentStudioItems = [];
+
+function parseQtySmart(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { qty: 0, display: "" };
+  if (raw.includes(":")) {
+    const [h, m] = raw.split(":").map(v => parseInt(v, 10));
+    const hours = (isNaN(h) ? 0 : h) + ((isNaN(m) ? 0 : m) / 60);
+    return { qty: Math.max(0, hours), display: raw };
+  }
+  const num = Number(raw);
+  return { qty: isNaN(num) ? 0 : num, display: raw };
+}
+
+async function loadStudioItems(studioName) {
+  currentStudioItems = [];
+  if (!studioName) {
+    renderItemDropdown();
+    return;
+  }
+  try {
+    const snap = await getDocs(
+      query(collection(db, "studioItems"), where("studioName", "==", studioName))
+    );
+    snap.forEach((d) => {
+      const x = d.data();
+      currentStudioItems.push({
+        itemName: x.itemName,
+        itemPrice: Number(x.itemPrice || 0),
+      });
+    });
+    renderItemDropdown();
+  } catch (err) {
+    console.error("loadStudioItems error:", err);
+    renderItemDropdown();
+  }
+}
+
+function renderItemDropdown() {
+  if (!itemSelect) return;
+  itemSelect.innerHTML = `<option value="">Select Service/Item</option>`;
+  if (itemSelectSearch) itemSelectSearch.value = "";
+  if (!currentStudioItems.length) return;
+
+  currentStudioItems.forEach((it, idx) => {
+    const name = (it.itemName || "Item").toString();
+    const opt = document.createElement("option");
+    opt.value = String(idx);
+    opt.textContent = name;
+    opt.dataset.price = String(it.itemPrice || 0);
+    itemSelect.appendChild(opt);
+  });
+}
+
+function syncItemSelectFromSearch() {
+  if (!itemSelectSearch || !itemSelect) return;
+  const q = itemSelectSearch.value.trim().toLowerCase();
+  if (!q) {
+    itemSelect.value = "";
+    if (itemPriceInput) itemPriceInput.value = "";
+    return;
+  }
+  const idx = currentStudioItems.findIndex(
+    (it) => (it.itemName || "Item").toString().toLowerCase() === q
+  );
+  if (idx >= 0) {
+    itemSelect.value = String(idx);
+    if (itemPriceInput) itemPriceInput.value = String(currentStudioItems[idx].itemPrice || 0);
+  } else {
+    itemSelect.value = "";
+    if (itemPriceInput) itemPriceInput.value = "";
+  }
+}
+
+function renderItemSuggestions(showAll = false) {
+  if (!itemSuggestions) return;
+  const q = (itemSelectSearch && itemSelectSearch.value || "").toLowerCase().trim();
+  if (!q && !showAll) {
+    itemSuggestions.style.display = "none";
+    itemSuggestions.innerHTML = "";
+    return;
+  }
+  const matches = currentStudioItems
+    .map((it, idx) => ({ name: (it.itemName || "Item").toString(), idx }))
+    .filter((it) => (q ? it.name.toLowerCase().includes(q) : true))
+    .slice(0, 20);
+
+  if (!matches.length) {
+    itemSuggestions.innerHTML = `<div class="item muted">No items found</div>`;
+    itemSuggestions.style.display = "block";
+    return;
+  }
+
+  itemSuggestions.innerHTML = matches
+    .map((it) => `<div class="item" data-idx="${it.idx}">${it.name}</div>`)
+    .join("");
+  itemSuggestions.style.display = "block";
+
+  itemSuggestions.querySelectorAll(".item[data-idx]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const idx = el.getAttribute("data-idx");
+      if (itemSelect) itemSelect.value = idx;
+      if (itemSelectSearch) itemSelectSearch.value = el.textContent || "";
+      if (itemPriceInput) {
+        const base = currentStudioItems[Number(idx)];
+        itemPriceInput.value = base ? String(base.itemPrice || 0) : "";
+      }
+      itemSuggestions.style.display = "none";
+    });
+  });
+}
+
+function renderItemsTable() {
+  if (!itemsBody) return;
+  itemsBody.innerHTML = "";
+  if (!currentJobItems.length) {
+    itemsBody.innerHTML = `<tr><td colspan="5">No items</td></tr>`;
+    updateJobInfoTotals();
+    return;
+  }
+  currentJobItems.forEach((i, idx) => {
+    itemsBody.innerHTML += `
+      <tr>
+        <td>${i.name || "-"}</td>
+        <td>${i.qtyInput || "-"}</td>
+        <td>₹${money(i.price)}</td>
+        <td>₹${money(i.rowTotal)}</td>
+        <td><button class="btn btn-close btn-sm" data-rm="${idx}">Remove</button></td>
+      </tr>
+    `;
+  });
+  itemsBody.querySelectorAll("button[data-rm]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const idx = Number(btn.getAttribute("data-rm"));
+      if (!Number.isNaN(idx)) {
+        currentJobItems.splice(idx, 1);
+        renderItemsTable();
+      }
+    });
+  });
+  updateJobInfoTotals();
+}
+
+function updateJobInfoTotals() {
+  if (!currentJobData || !jobInfo) return;
+  const totalAmount = currentJobItems.reduce((a, i) => a + Number(i.rowTotal || 0), 0);
+  const paidAmount = Number(currentJobData.paidAmount || 0);
+  const pendingAmount = Math.max(0, totalAmount - paidAmount);
+  jobInfo.innerHTML = `
+    <div><b>Job No:</b> ${currentJobData.jobNo}</div>
+    <div><b>Studio:</b> ${currentJobData.studioName || "-"}</div>
+    <div><b>Total Amount:</b> ₹${money(totalAmount)}</div>
+    <div><b>Paid:</b> ₹${money(paidAmount)}</div>
+    <div><b>Pending:</b> ₹${money(pendingAmount)}</div>
+  `;
+}
 let allPayments = [];
 
 /* =====================================================
@@ -274,30 +442,23 @@ function renderJobs(list) {
 ===================================================== */
 function openJobModal(job) {
   currentJobId = job.id;
-
-  jobInfo.innerHTML = `
-    <div><b>Job No:</b> ${job.jobNo}</div>
-    <div><b>Studio:</b> ${job.studioName || "-"}</div>
-    <div><b>Total Amount:</b> ₹${money(job.totalAmount)}</div>
-    <div><b>Paid:</b> ₹${money(job.paidAmount)}</div>
-    <div><b>Pending:</b> ₹${money(job.pendingAmount)}</div>
-  `;
+  currentJobData = job;
 
   editProject.value = job.projectName || "";
   editReady.value = formatDate(job.dataReadyDate);
   editDeliver.value = formatDate(job.dataDeliverDate);
 
-  itemsBody.innerHTML = "";
-  (job.itemsAdded || []).forEach(i => {
-    itemsBody.innerHTML += `
-      <tr>
-        <td>${i.name || "-"}</td>
-        <td>${i.qtyInput || "-"}</td>
-        <td>₹${money(i.price)}</td>
-        <td>₹${money(i.rowTotal)}</td>
-      </tr>
-    `;
-  });
+  loadStudioItems(job.studioName || job.customerName || "");
+
+  currentJobItems = Array.isArray(job.itemsAdded) ? job.itemsAdded.map(i => ({
+    name: i.name || i.itemName || "-",
+    price: Number(i.price || i.itemPrice || 0),
+    qtyInput: i.qtyInput || i.displayValue || i.quantity || i.qtyValue || "-",
+    qtyValue: Number(i.qtyValue || i.quantity || 0),
+    rowTotal: Number(i.rowTotal || i.totalPrice || 0)
+  })) : [];
+  renderItemsTable();
+  if (itemPriceInput) itemPriceInput.value = "";
 
   jobModal.classList.remove("hidden");
 }
@@ -313,13 +474,66 @@ window.closeModal = () => {
 saveJobBtn.addEventListener("click", async () => {
   if (!currentJobId) return;
 
+  const totalAmount = currentJobItems.reduce((a, i) => a + Number(i.rowTotal || 0), 0);
+  const paidAmount = Number(currentJobData?.paidAmount || 0);
+  const pendingAmount = Math.max(0, totalAmount - paidAmount);
+
   await updateDoc(doc(db, "jobs", currentJobId), {
     projectName: editProject.value,
     dataReadyDate: editReady.value,
-    dataDeliverDate: editDeliver.value
+    dataDeliverDate: editDeliver.value,
+    itemsAdded: currentJobItems,
+    totalAmount,
+    pendingAmount,
+    updatedAt: serverTimestamp()
   });
 
   closeModal();
+});
+
+if (addItemAdminBtn) {
+  addItemAdminBtn.addEventListener("click", () => {
+    if (itemSelectSearch) syncItemSelectFromSearch();
+    const idxStr = itemSelect ? itemSelect.value : "";
+    const qtyRaw = (itemQtyInput?.value || "").trim();
+    if (!idxStr) return;
+    const parsed = parseQtySmart(qtyRaw);
+    if (!parsed.qty) return;
+    const base = currentStudioItems[Number(idxStr)];
+    if (!base) return;
+    const name = base.itemName || "Item";
+    const price = Number(base.itemPrice || 0);
+    const rowTotal = parsed.qty * price;
+    currentJobItems.push({
+      name,
+      price,
+      qtyInput: parsed.display,
+      qtyValue: parsed.qty,
+      rowTotal
+    });
+    if (itemSelectSearch) itemSelectSearch.value = "";
+    if (itemSelect) itemSelect.value = "";
+    if (itemQtyInput) itemQtyInput.value = "";
+    if (itemPriceInput) itemPriceInput.value = "";
+    renderItemsTable();
+  });
+}
+
+if (itemSelectSearch) {
+  itemSelectSearch.addEventListener("input", () => {
+    renderItemSuggestions(true);
+    syncItemSelectFromSearch();
+  });
+  itemSelectSearch.addEventListener("focus", () => {
+    renderItemSuggestions(true);
+  });
+}
+
+document.addEventListener("click", (e) => {
+  if (!itemSuggestions || !itemSelectSearch) return;
+  const wrap = itemSelectSearch.closest(".item-select-wrap");
+  if (wrap && wrap.contains(e.target)) return;
+  itemSuggestions.style.display = "none";
 });
 
 /* =====================================================

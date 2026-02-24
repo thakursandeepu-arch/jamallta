@@ -81,6 +81,8 @@ if (togglePass && passEl) {
 
 let persistenceReady = false;
 let suppressAutoRedirect = false;
+const FORCE_LOGIN_KEY = "force_login";
+const SUPPRESS_KEY = "suppress_auto_redirect";
 async function ensurePersistence() {
   if (persistenceReady) return;
   try {
@@ -95,7 +97,12 @@ async function ensurePersistence() {
 // Auto-keep login on mobile/desktop if user didn't logout
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
-  if (suppressAutoRedirect) return;
+  if (suppressAutoRedirect || sessionStorage.getItem(SUPPRESS_KEY) === "1") return;
+  if (localStorage.getItem(FORCE_LOGIN_KEY) === "1") {
+    localStorage.removeItem(FORCE_LOGIN_KEY);
+    try { signOut(auth); } catch (_) { /* ignore */ }
+    return;
+  }
   // avoid redirect loops on logout modal etc.
   startLoading();
   redirectByRole(user.uid);
@@ -239,6 +246,8 @@ btn.onclick = async () => {
 
     await ensurePersistence();
     const cred = await signInWithEmailAndPassword(auth, loginEmail, pass);
+    localStorage.removeItem(FORCE_LOGIN_KEY);
+    sessionStorage.removeItem(SUPPRESS_KEY);
 
     // Professional delay (UX)
     setTimeout(() => {
@@ -264,6 +273,7 @@ let resetViewMode = "reset"; // "reset" | "create"
 function openResetModal(mode = "reset") {
   resetViewMode = mode;
   suppressAutoRedirect = true;
+  sessionStorage.setItem(SUPPRESS_KEY, "1");
   resetMsg.textContent = "";
   otpVerified = false;
   if (emailEl && emailEl.value.trim()) {
@@ -293,6 +303,7 @@ forgotBtn.onclick = () => {
 closeModal.onclick = () => {
   forgotModal.style.display = "none";
   suppressAutoRedirect = false;
+  sessionStorage.removeItem(SUPPRESS_KEY);
   if (auth?.currentUser?.uid) {
     startLoading();
     redirectByRole(auth.currentUser.uid);
@@ -394,6 +405,7 @@ sendOtpBtn.onclick = async () => {
     const verifier = ensureResetRecaptcha();
     resetConfirmation = await signInWithPhoneNumber(auth, phone, verifier);
     suppressAutoRedirect = true;
+    sessionStorage.setItem(SUPPRESS_KEY, "1");
     resetMsg.style.color = "green";
     resetMsg.textContent = "OTP sent to your phone.";
     verifyOtpBtn.classList.remove("hidden");
@@ -444,6 +456,7 @@ const resetCode = getResetCodeFromUrl();
 if (resetCode) {
   (async () => {
     suppressAutoRedirect = true;
+    sessionStorage.setItem(SUPPRESS_KEY, "1");
     try {
       await signOut(auth);
     } catch (_) {
@@ -510,6 +523,7 @@ if (saveNewPassBtn) {
       }
       try { await signOut(auth); } catch (_) { /* ignore */ }
       suppressAutoRedirect = false;
+      sessionStorage.removeItem(SUPPRESS_KEY);
       newPassMsg.style.color = "green";
       newPassMsg.textContent = "Password updated. You can login now.";
       setTimeout(() => {

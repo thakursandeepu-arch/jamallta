@@ -148,6 +148,87 @@ function includesWeeklyOff(fromStr, toStr, weeklyOffDay = 0) {
   return false;
 }
 
+const HOLIDAY_FALLBACK = {
+  2026: {
+    "2026-02-15": "Maha Shivratri",
+    "2026-03-04": "Holi",
+    "2026-08-28": "Raksha Bandhan",
+    "2026-09-04": "Janmashtami",
+    "2026-11-08": "Diwali",
+    "2026-11-11": "Bhai Dooj"
+  }
+};
+
+const holidayMap = new Map();
+let holidaysLoaded = false;
+
+async function loadHolidays() {
+  if (holidaysLoaded) return;
+  holidayMap.clear();
+  try {
+    const snap = await getDocs(collection(db, "holidays"));
+    snap.forEach((docSnap) => {
+      const r = docSnap.data() || {};
+      const ymd = toYMD(r.dateYMD || r.date || r.holidayDate || "");
+      if (!ymd) return;
+      const name = r.name || r.title || "Holiday";
+      holidayMap.set(ymd, name);
+    });
+  } catch (err) {
+    console.error("holidays load failed:", err);
+  }
+  if (!holidayMap.size) {
+    const year = new Date().getFullYear();
+    const fb = HOLIDAY_FALLBACK[year] || {};
+    Object.keys(fb).forEach((d) => holidayMap.set(d, fb[d]));
+  }
+  holidaysLoaded = true;
+}
+
+function holidayName(ymd) {
+  if (!ymd) return "";
+  return holidayMap.get(ymd) || "";
+}
+
+function isSunday(ymd) {
+  if (!ymd) return false;
+  const d = new Date(`${ymd}T00:00:00`);
+  return !isNaN(d) && d.getDay() === 0;
+}
+
+function isOffDay(ymd) {
+  return isSunday(ymd) || !!holidayName(ymd);
+}
+
+function minutesBetween(a, b) {
+  if (!a || !b) return null;
+  const start = a?.seconds ? new Date(a.seconds * 1000) : new Date(a);
+  const end = b?.seconds ? new Date(b.seconds * 1000) : new Date(b);
+  if (isNaN(start) || isNaN(end)) return null;
+  const diff = Math.max(0, end.getTime() - start.getTime());
+  return Math.round(diff / 60000);
+}
+
+function hourlyRateFromSalary(monthlySalary) {
+  const base = parseSalaryNumber(monthlySalary);
+  if (!base) return 0;
+  const WORKING_DAYS = 26;
+  const HOURS_PER_DAY = 9;
+  return base / (WORKING_DAYS * HOURS_PER_DAY);
+}
+
+function dailyEarnings({ status, workedMinutes, monthlySalary }) {
+  const rate = hourlyRateFromSalary(monthlySalary);
+  if (!rate) return 0;
+  const st = String(status || "").trim().toLowerCase();
+  if (Number.isFinite(workedMinutes) && workedMinutes > 0) {
+    return Math.round((workedMinutes / 60) * rate);
+  }
+  if (st === "present") return Math.round(9 * rate);
+  if (st === "half-day") return Math.round(4.5 * rate);
+  return 0;
+}
+
 function setLeaveMsg(text, isError = false) {
   if (!leaveMsg) return;
   leaveMsg.textContent = text;
@@ -368,6 +449,7 @@ async function loadNextLeaveInfo() {
 
 async function loadEmployeeInfo() {
   try {
+    await loadHolidays();
     const qEmp = query(collection(db, "employees"), where("email", "==", currentUserEmail));
     const empSnap = await getDocs(qEmp);
     let data = null;
@@ -445,9 +527,11 @@ async function loadEmployeeInfo() {
     const empIdKey = (data.employeeId || "").toString().trim();
 
     onSnapshot(collection(db, "attendance"), (snap) => {
-      let present = 0;
+      let presentWork = 0;
       let absent = 0;
       let leave = 0;
+      let holidayPresent = 0;
+      let holidayBonus = 0;
       snap.forEach((docSnap) => {
         const r = docSnap.data() || {};
         const d = toDate(r.date || r.attendanceDate || r.createdAt || r.updatedAt);
@@ -457,17 +541,31 @@ async function loadEmployeeInfo() {
         if (emailKey && rEmail && rEmail !== emailKey) return;
         if (!emailKey && empIdKey && rEmpId && rEmpId !== empIdKey) return;
         const st = normalizeStatus(r.status);
-        if (st === "present") present += 1;
-        else if (st === "half-day") present += 0.5;
+        const ymd = toYMD(r.dateYMD || r.date || r.attendanceDate || r.createdAt || r.updatedAt);
+        const offDay = isOffDay(ymd);
+        const workedMinutes = Number.isFinite(r.workedMinutes)
+          ? r.workedMinutes
+          : minutesBetween(r.punchInAt, r.punchOutAt);
+        if (offDay) {
+          if (st === "present" || st === "half-day") {
+            holidayPresent += st === "half-day" ? 0.5 : 1;
+            holidayBonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: baseSalary });
+          }
+          return;
+        }
+        if (st === "present") presentWork += 1;
+        else if (st === "half-day") presentWork += 0.5;
         else if (st === "absent") absent += 1;
         else if (st === "leave") leave += 1;
       });
-      if (attPresent) attPresent.textContent = present;
+      const presentDisplay = presentWork + holidayPresent;
+      if (attPresent) attPresent.textContent = presentDisplay;
       if (attAbsent) attAbsent.textContent = absent;
       if (attLeave) attLeave.textContent = leave;
 
-      const payable = calcPayableSalary(baseSalary, present, leave);
-      setIfExists("ePayableSalary", payable == null ? "-" : formatSalary(payable));
+      const basePayable = calcPayableSalary(baseSalary, presentWork, leave);
+      const payable = basePayable == null ? 0 : basePayable + holidayBonus;
+      setIfExists("ePayableSalary", basePayable == null ? "-" : formatSalary(payable));
     });
   } catch (err) {
     console.error("loadEmployeeInfo error:", err);
@@ -1022,6 +1120,7 @@ function isMonthInRange(key, fromKey, toKey) {
 
 async function generateSalarySlip() {
   try {
+    await loadHolidays();
     const baseSalary = currentUserData?.salary || currentUserData?.monthlySalary || currentUserData?.pay || 0;
     const name = currentUserData?.fullName || currentUserData?.name || currentUserEmail || "";
     const empId =
@@ -1041,11 +1140,23 @@ async function generateSalarySlip() {
       if (!d) return;
       const key = monthKey(d);
       if (!byMonth.has(key)) {
-        byMonth.set(key, { present: 0, leave: 0, absent: 0 });
+        byMonth.set(key, { present: 0, leave: 0, absent: 0, bonus: 0 });
       }
       const st = String(r.status || "").toLowerCase();
       const row = byMonth.get(key);
+      const ymd = toYMD(raw);
+      const offDay = isOffDay(ymd);
+      const workedMinutes = Number.isFinite(r.workedMinutes)
+        ? r.workedMinutes
+        : minutesBetween(r.punchInAt, r.punchOutAt);
+      if (offDay) {
+        if (st === "present" || st === "half-day") {
+          row.bonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: baseSalary });
+        }
+        return;
+      }
       if (st === "present") row.present += 1;
+      else if (st === "half-day") row.present += 0.5;
       else if (st === "leave") row.leave += 1;
       else if (st === "absent") row.absent += 1;
     });
@@ -1071,7 +1182,7 @@ async function generateSalarySlip() {
         present: v.present,
         leave: v.leave,
         absent: v.absent,
-        payable: calcPayableSalary(baseSalary, v.present, v.leave) || 0,
+        payable: (calcPayableSalary(baseSalary, v.present, v.leave) || 0) + (v.bonus || 0),
       };
     });
 
@@ -1590,6 +1701,7 @@ if (salarySlipMode) {
 
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
+    try { localStorage.setItem("force_login", "1"); } catch (e) {}
     signOut(auth).finally(() => {
       window.location.href = "../index.html";
     });

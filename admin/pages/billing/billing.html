@@ -74,10 +74,21 @@
     <h4 class="items-title">Items Added</h4>
     <table class="items-table">
       <thead>
-        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr>
+        <tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr>
       </thead>
       <tbody id="itemsBody"></tbody>
     </table>
+
+    <div class="item-edit-row">
+      <div class="item-select-wrap">
+        <input id="itemSelectSearch" placeholder="Select Service/Item" autocomplete="off" />
+        <div class="suggestions" id="itemSuggestions" style="display:none;"></div>
+        <select id="itemSelect" style="display:none;"></select>
+      </div>
+      <input id="itemQtyInput" placeholder="Qty or H:MM" />
+      <input id="itemPriceInput" placeholder="Price" type="number" readonly />
+      <button class="btn btn-save" id="addItemAdminBtn">Add Item</button>
+    </div>
 
     <div class="modal-footer">
       <button class="btn btn-close" onclick="closeModal()">Close</button>

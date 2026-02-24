@@ -880,6 +880,7 @@ document.querySelectorAll(".clickable").forEach(c => {
 });
 searchBox.oninput = renderJobs;
 logoutBtn.onclick = async () => {
+  try { localStorage.setItem("force_login", "1"); } catch (e) {}
   await signOut(auth);
   const base = location.pathname.includes("/public/") ? "/public/index.html" : "/index.html";
   location.href = base;
@@ -887,6 +888,7 @@ logoutBtn.onclick = async () => {
 
 if (sidebarLogoutBtn) {
   sidebarLogoutBtn.onclick = async () => {
+    try { localStorage.setItem("force_login", "1"); } catch (e) {}
     await signOut(auth);
     const base = location.pathname.includes("/public/") ? "/public/index.html" : "/index.html";
     location.href = base;

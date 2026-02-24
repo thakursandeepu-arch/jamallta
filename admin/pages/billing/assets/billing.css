@@ -327,6 +327,53 @@ tbody tr:hover{
   border-collapse:collapse;
 }
 
+.item-edit-row{
+  display:grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap:8px;
+  margin-top:12px;
+}
+
+.item-edit-row input{
+  background:#0e1630;
+  border:1px solid #2b3a72;
+  color:#e8eeff;
+  padding:8px 10px;
+  border-radius:10px;
+}
+
+.item-select-wrap{
+  position:relative;
+}
+
+.item-select-wrap .suggestions{
+  position:absolute;
+  top:40px;
+  left:0;
+  right:0;
+  background:#0f1734;
+  border:1px solid #26336a;
+  border-radius:10px;
+  max-height:200px;
+  overflow:auto;
+  z-index:50;
+}
+
+.item-select-wrap .suggestions .item{
+  padding:8px 10px;
+  cursor:pointer;
+  color:#e8eeff;
+}
+
+.item-select-wrap .suggestions .item:hover{
+  background:rgba(255,255,255,0.06);
+}
+
+.item-select-wrap .suggestions .item.muted{
+  color:#a9b6ff;
+  cursor:default;
+}
+
 .items-table th{
   padding:10px;
   font-size:12px;

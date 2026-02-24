@@ -145,6 +145,72 @@ let monthlyAttendanceRows = [];
 let paymentUnsub = null;
 let didAutoSetAttDate = false;
 let currentEmpAttendanceRecords = [];
+const HOLIDAY_FALLBACK = {
+  2026: {
+    "2026-02-15": "Maha Shivratri",
+    "2026-03-04": "Holi",
+    "2026-08-28": "Raksha Bandhan",
+    "2026-09-04": "Janmashtami",
+    "2026-11-08": "Diwali",
+    "2026-11-11": "Bhai Dooj"
+  }
+};
+
+const holidayMap = new Map();
+let holidaysLoaded = false;
+
+async function loadHolidays() {
+  if (holidaysLoaded) return;
+  holidayMap.clear();
+  try {
+    const snap = await getDocs(collection(db, "holidays"));
+    snap.forEach((docSnap) => {
+      const r = docSnap.data() || {};
+      const ymd = toYMD(r.dateYMD || r.date || r.holidayDate || "");
+      if (!ymd) return;
+      const name = r.name || r.title || "Holiday";
+      holidayMap.set(ymd, name);
+    });
+  } catch (err) {
+    console.error("holidays load failed:", err);
+  }
+
+  if (!holidayMap.size) {
+    const year = new Date().getFullYear();
+    const fb = HOLIDAY_FALLBACK[year] || {};
+    Object.keys(fb).forEach((d) => holidayMap.set(d, fb[d]));
+  }
+
+  holidaysLoaded = true;
+}
+
+function holidayName(ymd) {
+  if (!ymd) return "";
+  return holidayMap.get(ymd) || "";
+}
+
+function isSunday(ymd) {
+  if (!ymd) return false;
+  const d = new Date(`${ymd}T00:00:00`);
+  return !isNaN(d) && d.getDay() === 0;
+}
+
+function isOffDay(ymd) {
+  return isSunday(ymd) || !!holidayName(ymd);
+}
+
+function countWorkingDays(start, end) {
+  if (!start || !end || end < start) return 0;
+  const cursor = new Date(start);
+  let count = 0;
+  while (cursor <= end) {
+    const ymd = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
+    if (!isOffDay(ymd)) count += 1;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return count;
+}  return count;
+}
 
 function normalizePhoneE164(raw) {
   if (!raw) return "";
@@ -413,9 +479,11 @@ function selectedMonthRange() {
 
 function renderEmployeeAttendanceSummary(records) {
   const range = selectedMonthRange();
-  let present = 0;
+  let presentWork = 0;
   let leave = 0;
   let absent = 0;
+  let holidayPresent = 0;
+  let holidayBonus = 0;
   const latestByDate = new Map();
 
   records.forEach((r) => {
@@ -434,15 +502,24 @@ function renderEmployeeAttendanceSummary(records) {
     const hasPunchOut = Boolean(r.punchOutAt || r.punchOutTime || r.punchOut);
     let st = normalizeStatus(r.status);
     if (st === "present" && !hasPunchOut) st = "half-day";
-    if (st === "present") present += 1;
-    else if (st === "half-day") present += 0.5;
-    else if (st === "leave") leave += 1;
-    else if (st === "absent") absent += 1;
-    const punchIn = formatHM(r.punchInAt || r.punchInTime || r.punchIn);
-    const punchOut = formatHM(r.punchOutAt || r.punchOutTime || r.punchOut);
+
     const workedMinutes = Number.isFinite(r.workedMinutes)
       ? r.workedMinutes
       : minutesBetween(r.punchInAt, r.punchOutAt);
+    const offDay = isOffDay(ymd);
+    if (offDay) {
+      if (st === "present" || st === "half-day") {
+        holidayPresent += st === "half-day" ? 0.5 : 1;
+        holidayBonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: currentEmpSalary });
+      }
+    } else {
+      if (st === "present") presentWork += 1;
+      else if (st === "half-day") presentWork += 0.5;
+      else if (st === "leave") leave += 1;
+      else if (st === "absent") absent += 1;
+    }
+    const punchIn = formatHM(r.punchInAt || r.punchInTime || r.punchIn);
+    const punchOut = formatHM(r.punchOutAt || r.punchOutTime || r.punchOut);
     const worked = minutesToLabel(workedMinutes);
     monthlyRows.push({
       date: ymd,
@@ -458,23 +535,24 @@ function renderEmployeeAttendanceSummary(records) {
   monthlyAttendanceRows = monthlyRows;
   renderMonthlyAttendanceRows(monthlyAttendanceRows);
 
+  const presentDisplay = presentWork + holidayPresent;
   const today = new Date();
-  const daysSoFar = range
-    ? Math.min(today.getDate(), 26)
-    : Math.min(today.getDate(), 26);
-  const expected = daysSoFar;
-  const autoAbsent = Math.max(0, expected - present - leave - absent);
+  const endDate = range ? (range.end < today ? range.end : today) : today;
+  const workingDays = range ? countWorkingDays(range.start, endDate) : Math.min(today.getDate(), 26);
+  const expected = Math.min(26, workingDays);
+  const autoAbsent = Math.max(0, expected - presentWork - leave - absent);
   absent += autoAbsent;
 
-  if (aPresent) aPresent.textContent = formatCount(present);
+  if (aPresent) aPresent.textContent = formatCount(presentDisplay);
   if (aAbsent) aAbsent.textContent = formatCount(absent);
   if (aLeave) aLeave.textContent = formatCount(leave);
 
-  const payable = calcPayableSalary(currentEmpSalary, present, leave);
-  if (mPayableSalary) mPayableSalary.textContent = payable == null ? "0" : formatSalary(payable);
-  if (fPayableSalary) fPayableSalary.value = payable == null ? "0" : formatSalary(payable);
+  const basePayable = calcPayableSalary(currentEmpSalary, presentWork, leave);
+  const payable = basePayable == null ? 0 : basePayable + holidayBonus;
+  if (mPayableSalary) mPayableSalary.textContent = basePayable == null ? "0" : formatSalary(payable);
+  if (fPayableSalary) fPayableSalary.value = basePayable == null ? "0" : formatSalary(payable);
   if (payAmount && (!payAmount.value || payAmount.value === "0")) {
-    payAmount.value = payable == null ? "" : formatSalary(payable);
+    payAmount.value = basePayable == null ? "" : formatSalary(payable);
   }
   if (payPaidAmount && (!payPaidAmount.value || payPaidAmount.value === "0")) {
     payPaidAmount.value = "0";
@@ -583,9 +661,17 @@ function renderAttendanceSummary(records, team = []) {
     if (!prev || ts >= prev.ts) latestByKey.set(key, { r, ts });
   });
 
+  const offDay = isOffDay(selectedDate);
   latestByKey.forEach(({ r }) => {
-    const st = normalizeStatus(r.status);
+    const hasPunchOut = Boolean(r.punchOutAt || r.punchOutTime || r.punchOut);
+    let st = normalizeStatus(r.status);
+    if (st === "present" && !hasPunchOut) st = "half-day";
     if (!st) return;
+    if (offDay) {
+      if (st === "present") { present += 1; total += 1; }
+      else if (st === "half-day") { present += 0.5; total += 1; }
+      return;
+    }
     total += 1;
     if (st === "present") present += 1;
     else if (st === "half-day") present += 0.5;
@@ -1183,7 +1269,7 @@ function loadEmployeeAttendance(email, empId, fullName = "") {
     recordsBySource.forEach(m => m.forEach((v, k) => merged.set(k, v)));
     const records = Array.from(merged.values());
     currentEmpAttendanceRecords = records;
-    renderEmployeeAttendanceSummary(records);
+    loadHolidays().then(() => renderEmployeeAttendanceSummary(records));
   };
 
   const unsubs = [];
@@ -1573,7 +1659,7 @@ onSnapshot(collection(db, "employees"), (snap) => {
     employees.push({ id: docSnap.id, ...docSnap.data() });
   });
   renderTeam();
-  renderAttendanceSummary(attendanceRecords, employees);
+  loadHolidays().then(() => renderAttendanceSummary(attendanceRecords, employees));
   assignMissingEmployeeIds();
 }, (err) => {
   if (teamList) teamList.innerHTML = `<div class="empty-state">Failed to load team. Check permissions.</div>`;
@@ -1604,7 +1690,7 @@ onSnapshot(collection(db, "attendance"), (snap) => {
     records.push(docSnap.data());
   });
   attendanceRecords = records;
-  renderAttendanceSummary(attendanceRecords, employees);
+  loadHolidays().then(() => renderAttendanceSummary(attendanceRecords, employees));
 }, (err) => {
   console.error("Attendance snapshot error:", err);
   if (attDate) attDate.textContent = "Failed to load";
@@ -1733,7 +1819,7 @@ if (attFilterDate) {
   attFilterDate.value = todayYMD();
   attFilterDate.addEventListener("change", () => {
     didAutoSetAttDate = true;
-    renderAttendanceSummary(attendanceRecords, employees);
+    loadHolidays().then(() => renderAttendanceSummary(attendanceRecords, employees));
   });
 }
 

@@ -70,6 +70,7 @@ document.addEventListener("DOMContentLoaded", () => {
       localStorage.clear();
       sessionStorage.clear();
     } catch(e){}
+    try { localStorage.setItem("force_login", "1"); } catch(e){}
 
     try {
       const { auth } = await import("/login/assets/firebase-config.js");

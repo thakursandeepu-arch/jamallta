@@ -30,6 +30,58 @@ import {
 
 const ATTENDANCE_SELF_MARK = true;
 
+const HOLIDAY_FALLBACK = {
+  2026: {
+    "2026-02-15": "Maha Shivratri",
+    "2026-03-04": "Holi",
+    "2026-08-28": "Raksha Bandhan",
+    "2026-09-04": "Janmashtami",
+    "2026-11-08": "Diwali",
+    "2026-11-11": "Bhai Dooj"
+  }
+};
+
+const holidayMap = new Map();
+let holidaysLoaded = false;
+
+async function loadHolidays() {
+  if (holidaysLoaded) return;
+  holidayMap.clear();
+  try {
+    const snap = await getDocs(collection(db, "holidays"));
+    snap.forEach((docSnap) => {
+      const r = docSnap.data() || {};
+      const ymd = toYMD(r.dateYMD || r.date || r.holidayDate || "");
+      if (!ymd) return;
+      const name = r.name || r.title || "Holiday";
+      holidayMap.set(ymd, name);
+    });
+  } catch (err) {
+    console.error("holidays load failed:", err);
+  }
+  if (!holidayMap.size) {
+    const year = new Date().getFullYear();
+    const fb = HOLIDAY_FALLBACK[year] || {};
+    Object.keys(fb).forEach((d) => holidayMap.set(d, fb[d]));
+  }
+  holidaysLoaded = true;
+}
+
+function holidayName(ymd) {
+  if (!ymd) return "";
+  return holidayMap.get(ymd) || "";
+}
+
+function isSunday(ymd) {
+  if (!ymd) return false;
+  const d = new Date(`${ymd}T00:00:00`);
+  return !isNaN(d) && d.getDay() === 0;
+}
+
+function isOffDay(ymd) {
+  return isSunday(ymd) || !!holidayName(ymd);
+}
+
 async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
   try {
     await addDoc(collection(db, "notifications"), {
@@ -79,7 +131,6 @@ const punchConfirmText = document.getElementById("punchConfirmText");
 const confirmPunchIn = document.getElementById("confirmPunchIn");
 const cancelPunchConfirm = document.getElementById("cancelPunchConfirm");
 const closePunchConfirm = document.getElementById("closePunchConfirm");
-const nextLeaveDateEl = document.getElementById("nextLeaveDate");
 const notifBtn = document.getElementById("notifBtn");
 const notifPanel = document.getElementById("notifPanel");
 const notifList = document.getElementById("notifList");
@@ -91,6 +142,7 @@ const closeModalBtn = document.getElementById("closeModal");
 const cancelAssignBtn = document.getElementById("cancelAssign");
 const logoutBtn = document.getElementById("logoutBtn");
 const openInfoBtn = document.getElementById("openInfoBtn");
+const openLeaveBtn = document.getElementById("openLeaveBtn");
 
 // Optional create job button
 const createJobBtn = document.getElementById("createJobBtn");
@@ -486,42 +538,6 @@ function toYMDLocal(d) {
   return `${year}-${month}-${day}`;
 }
 
-function formatDateShort(d) {
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-async function loadNextLeaveInfo() {
-  try {
-    const nameKey = (currentUserData?.fullName || currentUserData?.name || "").toString().trim().toLowerCase();
-    const emailKey = (currentUserData?.email || currentUserEmail || "").toLowerCase().trim();
-    const lastLeaveMap = {
-      "shivani": "2026-02-03",
-      "manisha": "2026-02-04",
-      "maisha": "2026-02-04",
-      "anjali": "2026-02-05",
-      "ajali": "2026-02-05",
-      "sandeep": "2026-02-06",
-    };
-
-    let last = null;
-    Object.keys(lastLeaveMap).forEach((k) => {
-      if (!last && nameKey.includes(k)) last = lastLeaveMap[k];
-      if (!last && emailKey.includes(k)) last = lastLeaveMap[k];
-    });
-
-    if (!last) return;
-    let next = new Date(last);
-    const today = new Date(toYMDLocal(new Date()));
-    while (next < today) {
-      next.setDate(next.getDate() + 8);
-    }
-    if (nextLeaveDateEl) {
-      nextLeaveDateEl.textContent = next ? formatDateShort(next) : "-";
-    }
-  } catch (err) {
-    console.error("next leave error:", err);
-  }
-}
 
 async function punchOutNow() {
   if (!currentAttendanceId) {
@@ -599,7 +615,7 @@ async function markAbsentForMissingPunchIn() {
   const ops = [];
   while (day < today) {
     const key = toYMD(day);
-    if (key && key < todayKey && !existing.has(key)) {
+    if (key && key < todayKey && !existing.has(key) && !isOffDay(key)) {
       ops.push(addDoc(collection(db, "attendance"), {
         employeeEmail: currentUserEmail || "",
         employeeId: currentUserData?.employeeId || "",
@@ -643,12 +659,12 @@ onAuthStateChanged(auth, async (user) => {
     navigator.serviceWorker.register("../service-worker.js").catch(() => {});
   }
 
+  await loadHolidays();
   await loadEmployeeInfo();
   await ensurePunchIn();
   await markHalfDayForMissingPunchOut();
   await markAbsentForMissingPunchIn();
   await loadTodayAttendance();
-  await loadNextLeaveInfo();
   listenNotifications();
   startJobsListener();
   await preloadCustomerStudios(); // preload customers for filtering available projects
@@ -810,6 +826,12 @@ async function loadEmployeeInfo() {
 if (openInfoBtn) {
   openInfoBtn.addEventListener("click", () => {
     window.location.href = "./info.html";
+  });
+}
+
+if (openLeaveBtn) {
+  openLeaveBtn.addEventListener("click", () => {
+    window.location.href = "./info.html#leaveSection";
   });
 }
 
@@ -1238,6 +1260,7 @@ function calculateTotalAmount() {
 // --------------- RENDER ITEMS LIST (NO PRICE VISIBLE) ---------------
 function renderItemsList() {
   if (!itemsList) return;
+  const locked = isJobLocked();
   itemsList.innerHTML = "";
   if (!currentJobItems.length) {
     itemsList.innerHTML =
@@ -1261,25 +1284,28 @@ function renderItemsList() {
         <div class="muted">${modeText}</div>
       </div>
       <div class="item-actions">
-        <button class="delete-btn" data-idx="${i}">
+        <button class="delete-btn" data-idx="${i}" ${locked ? "disabled" : ""} style="${locked ? "display:none;" : ""}">
           <i class="fas fa-times"></i>
         </button>
       </div>
     `;
 
-    div
-      .querySelector(".delete-btn")
-      .addEventListener("click", (e) => {
-        e.stopPropagation();
-        currentJobItems.splice(i, 1);
-        renderItemsList();
-      });
+    if (!locked) {
+      div
+        .querySelector(".delete-btn")
+        .addEventListener("click", (e) => {
+          e.stopPropagation();
+          currentJobItems.splice(i, 1);
+          renderItemsList();
+        });
+    }
 
     itemsList.appendChild(div);
   });
 
   // update delete button visibility after items rendered
   updateDeleteButtonState();
+  updateItemsEditState();
 }
 
 // --------------- CORRECTIONS ---------------
@@ -1337,6 +1363,8 @@ if (editDataReadyToday) {
   editDataReadyToday.addEventListener("change", () => {
     if (editDataReadyToday.checked) {
       editDataReadyDate.value = new Date().toISOString().split("T")[0];
+      updateDeleteButtonState();
+      updateItemsEditState();
     }
   });
 }
@@ -1347,12 +1375,7 @@ function updateDeleteButtonState() {
   if (!deleteProjectBtn) return;
   const status = (editStatus && editStatus.value) || (currentEditingJobData && currentEditingJobData.status) || "Assigned";
   const st = String(status || "").toLowerCase();
-  const readyDate =
-    (editDataReadyDate && editDataReadyDate.value) ||
-    currentEditingJobData?.dataReadyDate ||
-    "";
-  const isReadyByDate = String(readyDate || "").trim() !== "";
-  const isLocked = st === "ready" || st === "delivered" || isReadyByDate;
+  const isLocked = isJobLocked();
   const canDelete = !isLocked && (currentJobItems.length === 0 || st !== "ready");
   if (canDelete) {
     deleteProjectBtn.style.display = "inline-flex";
@@ -1364,10 +1387,33 @@ function updateDeleteButtonState() {
   }
 }
 
+function isJobLocked() {
+  const status = (editStatus && editStatus.value) || (currentEditingJobData && currentEditingJobData.status) || "Assigned";
+  const st = String(status || "").toLowerCase();
+  const readyDate =
+    (editDataReadyDate && editDataReadyDate.value) ||
+    currentEditingJobData?.dataReadyDate ||
+    "";
+  const isReadyByDate = String(readyDate || "").trim() !== "";
+  return st === "ready" || st === "delivered" || isReadyByDate;
+}
+
+function updateItemsEditState() {
+  // Items can still be added when ready; only removal is locked.
+}
+
 // update on status change
 if (editStatus) {
   editStatus.addEventListener("change", () => {
     updateDeleteButtonState();
+    updateItemsEditState();
+  });
+}
+
+if (editDataReadyDate) {
+  editDataReadyDate.addEventListener("change", () => {
+    updateDeleteButtonState();
+    updateItemsEditState();
   });
 }
 
@@ -1461,6 +1507,7 @@ async function openProjectEditor(jobId) {
 
     // set delete button state based on items/status
     updateDeleteButtonState();
+    updateItemsEditState();
 
     if (editorModal) editorModal.style.display = "flex";
   } catch (err) {
@@ -1913,6 +1960,7 @@ if (createJobBtn) {
 // --------------- LOGOUT ---------------
 if (logoutBtn) {
   logoutBtn.addEventListener("click", () => {
+    try { localStorage.setItem("force_login", "1"); } catch (e) {}
     signOut(auth)
       .catch(() => {})
       .finally(() => {
