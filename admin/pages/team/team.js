@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+ï»¿import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   getAuth,
   onAuthStateChanged,
@@ -21,6 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
 
+(() => {
 const firebaseConfig = {
   apiKey: "AIzaSyAcHb-VHdM30fb9qSR4dzclmNTxXsTofIw",
   authDomain: "jamallta-films-2-27d2b.firebaseapp.com",
@@ -426,9 +427,9 @@ function listenPayment() {
     const pending = formatSalary(data.pendingAmount || 0);
     const status = data.status || "pending";
     const method = data.method || "manual";
-    const txn = data.txnId ? ` • Txn: ${data.txnId}` : "";
-    const over = data.overpaidAmount ? ` • Overpaid Rs ${formatSalary(data.overpaidAmount)}` : "";
-    payStatus.textContent = `Status: ${status.toUpperCase()} • ${method} • Total Rs ${amt} • Paid Rs ${paid} • Pending Rs ${pending}${over}${txn}`;
+    const txn = data.txnId ? ` ï¿½ Txn: ${data.txnId}` : "";
+    const over = data.overpaidAmount ? ` ï¿½ Overpaid Rs ${formatSalary(data.overpaidAmount)}` : "";
+    payStatus.textContent = `Status: ${status.toUpperCase()} ï¿½ ${method} ï¿½ Total Rs ${amt} ï¿½ Paid Rs ${paid} ï¿½ Pending Rs ${pending}${over}${txn}`;
   });
 }
 
@@ -936,12 +937,12 @@ function renderTeam() {
     const empId = d.employeeId || "";
     card.innerHTML = `
       <div class="name">${d.fullName || "No Name"}</div>
-      <div class="small">${d.role || "No Role"} • ${d.department || "N/A"}</div>
+      <div class="small">${d.role || "No Role"} ï¿½ ${d.department || "N/A"}</div>
       <div class="small">Experience: ${formatExperience(d.joiningDate) || d.experience || "N/A"}</div>
       <div class="small">Joining: ${joinText} ${joinBadge}</div>
       <div class="small">Email: ${d.email || "N/A"}</div>
       <div class="small">Salary: ${formatSalary(d.salary)}</div>
-      <div class="small">Rank #${idx + 1} • Jobs: ${count}</div>
+      <div class="small">Rank #${idx + 1} ï¿½ Jobs: ${count}</div>
       <div class="att-controls">
         <input class="input att-date" type="date" />
         <input class="input att-time" type="time" />
@@ -1088,7 +1089,7 @@ async function refreshProfileAttendanceInfo() {
     ? data.workedMinutes
     : minutesBetween(data?.punchInAt, data?.punchOutAt);
   const workedLabel = minutesToLabel(workedMinutes);
-  profilePunchInfo.textContent = `Punch In: ${punchIn} • Punch Out: ${punchOut} • Worked: ${workedLabel}`;
+  profilePunchInfo.textContent = `Punch In: ${punchIn} ï¿½ Punch Out: ${punchOut} ï¿½ Worked: ${workedLabel}`;
 }
 
 async function punchAttendance(type) {
@@ -1981,6 +1982,5 @@ if (btnSyncAuth) {
 
 console.log("Team Admin Loaded");
 
-
-
+})();
 
