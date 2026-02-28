@@ -96,7 +96,7 @@ async function initAdminPush(user) {
         : await Notification.requestPermission();
     if (permission !== "granted") return;
 
-    const reg = await navigator.serviceWorker.register("/jamallta/firebase-messaging-sw.js");
+    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
     const messaging = getMessaging(app);
     const token = await getToken(messaging, {
       vapidKey: VAPID_PUBLIC_KEY,
