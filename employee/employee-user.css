@@ -862,7 +862,25 @@ label{
   letter-spacing:.1px;
 }
 
+.page-employee-panel{
+  font-family:"Space Grotesk","Segoe UI",Arial,sans-serif;
+  letter-spacing:.1px;
+}
+
 .page-employee-info .page-hero{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  padding:14px 16px;
+  margin-top:10px;
+  border:1px solid rgba(38,51,106,.6);
+  border-radius:16px;
+  background:linear-gradient(180deg,rgba(16,26,58,.95),rgba(11,18,36,.95));
+  box-shadow:var(--shadow);
+}
+
+.page-employee-panel .page-hero{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -881,7 +899,18 @@ label{
   letter-spacing:.4px;
 }
 
+.page-employee-panel .page-hero h1{
+  margin:0 0 6px 0;
+  font-size:22px;
+  letter-spacing:.4px;
+}
+
 .page-employee-info .page-hero p{
+  margin:0;
+  font-size:13px;
+}
+
+.page-employee-panel .page-hero p{
   margin:0;
   font-size:13px;
 }
@@ -900,6 +929,19 @@ label{
   white-space:nowrap;
 }
 
+.page-employee-panel .hero-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 12px;
+  border-radius:999px;
+  border:1px solid rgba(47,137,255,.35);
+  background:rgba(47,137,255,.08);
+  color:#cfe2ff;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
 .page-employee-info .card{
   animation:fadeUp .4s ease both;
 }
@@ -1000,4 +1042,9 @@ label{
     align-items:flex-start;
   }
   .page-employee-info .hero-chip{ width:100%; justify-content:center; }
+  .page-employee-panel .page-hero{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .page-employee-panel .hero-chip{ width:100%; justify-content:center; }
 }

@@ -8,6 +8,8 @@ import {
   orderBy,
   limit,
   updateDoc,
+  getDoc,
+  setDoc,
   doc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
@@ -15,6 +17,12 @@ import {
   getAuth,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+  isSupported
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-messaging.js";
 /* ================= FIREBASE ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyAcHb-VHdM30fb9qSR4dzclmNTxXsTofIw",
@@ -24,6 +32,8 @@ const firebaseConfig = {
   messagingSenderId: "207209419416",
   appId: "1:207209419416:web:53ff512e34553e9286b6ed"
 };
+
+const VAPID_PUBLIC_KEY = "PUpP3C7dpxlo_QIIp3jysbj7AGE4xJKEBSP9YbYGw_U";
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
@@ -71,6 +81,59 @@ function startAdminNotifications() {
     });
     lastNotifSeconds = maxSeen;
   });
+}
+
+async function initAdminPush(user) {
+  try {
+    if (!("Notification" in window)) return;
+    if (!("serviceWorker" in navigator)) return;
+    const supported = await isSupported();
+    if (!supported) return;
+
+    const permission =
+      Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+    if (permission !== "granted") return;
+
+    const reg = await navigator.serviceWorker.register("/jamallta/firebase-messaging-sw.js");
+    const messaging = getMessaging(app);
+    const token = await getToken(messaging, {
+      vapidKey: VAPID_PUBLIC_KEY,
+      serviceWorkerRegistration: reg
+    });
+
+    if (token) {
+      const ref = doc(db, "admin_push_tokens", token);
+      const snap = await getDoc(ref);
+      if (snap.exists()) {
+        await setDoc(ref, {
+          token,
+          userId: user?.uid || "",
+          email: user?.email || "",
+          userAgent: navigator.userAgent,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } else {
+        await setDoc(ref, {
+          token,
+          userId: user?.uid || "",
+          email: user?.email || "",
+          userAgent: navigator.userAgent,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    onMessage(messaging, (payload) => {
+      const title = payload?.notification?.title || "Notification";
+      const body = payload?.notification?.body || "";
+      showBrowserNotif(title, body);
+    });
+  } catch (err) {
+    console.error("initAdminPush error:", err);
+  }
 }
 
 /* ================= DOM ================= */
@@ -233,6 +296,7 @@ onAuthStateChanged(auth, (user) => {
   if (user) {
     startListeners();
     startAdminNotifications();
+    initAdminPush(user);
   }
 });
 

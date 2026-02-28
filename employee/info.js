@@ -1410,6 +1410,7 @@ function calculateTotalAmount() {
 
 function renderItemsList() {
   if (!itemsList) return;
+  const locked = isJobLocked();
   itemsList.innerHTML = "";
   if (!currentJobItems.length) {
     itemsList.innerHTML = '<div class="muted">No items added. Add items above.</div>';
@@ -1430,16 +1431,18 @@ function renderItemsList() {
         <div class="muted">${modeText}</div>
       </div>
       <div class="item-actions">
-        <button class="delete-btn" data-idx="${i}">
+        <button class="delete-btn" data-idx="${i}" ${locked ? "disabled" : ""} style="${locked ? "display:none;" : ""}">
           <i class="fas fa-times"></i>
         </button>
       </div>
     `;
-    div.querySelector(".delete-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      currentJobItems.splice(i, 1);
-      renderItemsList();
-    });
+    if (!locked) {
+      div.querySelector(".delete-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        currentJobItems.splice(i, 1);
+        renderItemsList();
+      });
+    }
     itemsList.appendChild(div);
   });
 
@@ -1448,16 +1451,47 @@ function renderItemsList() {
 
 function updateDeleteButtonState() {
   if (!deleteProjectBtn) return;
-  const canDelete = true;
-  deleteProjectBtn.style.display = "inline-flex";
-  deleteProjectBtn.disabled = !canDelete;
+  const st = String(currentEditingJobData?.status || "").toLowerCase();
+  const locked = isJobLocked();
+  const canDelete = !locked && (currentJobItems.length === 0 || st !== "ready");
+  if (canDelete) {
+    deleteProjectBtn.style.display = "inline-flex";
+    deleteProjectBtn.disabled = false;
+  } else {
+    deleteProjectBtn.style.display = "inline-flex";
+    deleteProjectBtn.disabled = true;
+    deleteProjectBtn.title = "Ready/Delivered jobs cannot be deleted";
+  }
+}
+
+function isJobLocked() {
+  const st = String(currentEditingJobData?.status || "").toLowerCase();
+  const readyDate =
+    (editDataReadyDate && editDataReadyDate.value) ||
+    currentEditingJobData?.dataReadyDate ||
+    "";
+  const isReadyByDate = String(readyDate || "").trim() !== "";
+  return st === "ready" || st === "delivered" || isReadyByDate;
+}
+
+function updateItemsEditState() {
+  // Items removal locks when job is ready/delivered or has ready date.
 }
 
 if (editDataReadyToday) {
   editDataReadyToday.addEventListener("change", () => {
     if (editDataReadyToday.checked && editDataReadyDate) {
       editDataReadyDate.value = new Date().toISOString().split("T")[0];
+      updateDeleteButtonState();
+      updateItemsEditState();
     }
+  });
+}
+
+if (editDataReadyDate) {
+  editDataReadyDate.addEventListener("change", () => {
+    updateDeleteButtonState();
+    updateItemsEditState();
   });
 }
 
@@ -1512,8 +1546,8 @@ async function openProjectEditor(jobId) {
       return { name, price, qtyMode, qtyValue, qtyInput, rowTotal };
     });
     renderItemsList();
-
     updateDeleteButtonState();
+    updateItemsEditState();
     if (editorModal) editorModal.style.display = "flex";
   } catch (err) {
     console.error("openProjectEditor error:", err);
