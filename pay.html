@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jamallta Films Payment</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17120d;
+      --muted: #6f6254;
+      --line: #eadfce;
+      --paper: #fffaf2;
+      --bg: #f4f1eb;
+      --gold: #b88a3d;
+      --green: #17613a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+
+    .shell {
+      width: min(100%, 440px);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 18px 42px rgba(23, 18, 13, .12);
+    }
+
+    .brand {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 24px 22px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 25px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .brand p {
+      margin: 8px 0 0;
+      color: #e7dac7;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .content { padding: 22px; }
+
+    .label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .amount {
+      margin-top: 6px;
+      font-size: clamp(32px, 10vw, 44px);
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .note {
+      margin: 12px 0 0;
+      color: #2f3743;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .pay-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 10px;
+      background: var(--gold);
+      color: var(--ink);
+      min-height: 50px;
+      padding: 14px 18px;
+      margin-top: 20px;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .upi {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+    }
+
+    .qr-wrap {
+      display: none;
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      text-align: center;
+    }
+
+    .qr-wrap.active { display: block; }
+
+    .qr-wrap img {
+      width: min(100%, 260px);
+      height: auto;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .qr-wrap p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .status {
+      margin-top: 14px;
+      color: var(--green);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      padding: 14px 22px 18px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 420px) {
+      body {
+        align-items: flex-start;
+        padding: 10px;
+      }
+
+      .shell { border-radius: 14px; }
+      .brand, .content { padding: 20px 16px; }
+      .footer { padding: 14px 16px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="brand">
+      <h1>Jamallta Films</h1>
+      <p>Wedding Films, Photography and Editing Studio</p>
+    </section>
+
+    <section class="content">
+      <div class="label" id="payType">Payment</div>
+      <div class="amount" id="amount">Rs 0.00</div>
+      <p class="note" id="note">Jamallta Films payment</p>
+      <button class="pay-btn" id="payButton" type="button">Pay Now</button>
+      <div class="upi">UPI ID: thakursandeepm@oksbi</div>
+
+      <div class="qr-wrap" id="qrWrap">
+        <img id="qrImage" alt="UPI payment QR code">
+        <p>Desktop par payment ke liye Google Pay, PhonePe ya Paytm se QR scan karein.</p>
+      </div>
+
+      <div class="status" id="status"></div>
+    </section>
+
+    <footer class="footer">
+      Payment complete hone ke baad screenshot WhatsApp par share kar dein. Phone/WhatsApp: +91 8091181135
+    </footer>
+  </main>
+
+  <script>
+    const UPI_ID = "thakursandeepm@oksbi";
+    const PAYEE_NAME = "Jamallta Films";
+    const params = new URLSearchParams(window.location.search);
+
+    function safeAmount(value) {
+      const num = Number(value || 0);
+      return Number.isFinite(num) && num > 0 ? num : 0;
+    }
+
+    function formatMoney(value) {
+      return `Rs ${safeAmount(value).toFixed(2)}`;
+    }
+
+    function isMobileDevice() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    }
+
+    const amount = safeAmount(params.get("amount"));
+    const note = params.get("note") || "Jamallta Films payment";
+    const type = params.get("type") || "payment";
+    const upiParams = new URLSearchParams({
+      pa: UPI_ID,
+      pn: PAYEE_NAME,
+      cu: "INR",
+      tn: note
+    });
+
+    if (amount > 0) upiParams.set("am", amount.toFixed(2));
+    const upiUrl = `upi://pay?${upiParams.toString()}`;
+    const qrUrl = `https://quickchart.io/qr?size=320&margin=2&text=${encodeURIComponent(upiUrl)}`;
+
+    document.getElementById("payType").textContent = type === "full" ? "Full Payment" : type === "pending" ? "Pending Payment" : "Payment";
+    document.getElementById("amount").textContent = formatMoney(amount);
+    document.getElementById("note").textContent = note;
+
+    function openPayment() {
+      if (isMobileDevice()) {
+        document.getElementById("status").textContent = "UPI app open ho rahi hai. Agar open na ho, Pay Now dobara tap karein.";
+        window.location.href = upiUrl;
+        return;
+      }
+
+      const qrWrap = document.getElementById("qrWrap");
+      const qrImage = document.getElementById("qrImage");
+      qrImage.src = qrUrl;
+      qrWrap.classList.add("active");
+      document.getElementById("status").textContent = "QR code ready hai. Apne payment app se scan karein.";
+    }
+
+    document.getElementById("payButton").addEventListener("click", openPayment);
+
+    if (isMobileDevice()) {
+      setTimeout(openPayment, 450);
+    }
+  </script>
+</body>
+</html>

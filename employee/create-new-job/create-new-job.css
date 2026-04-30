@@ -1,0 +1,58 @@
+/* create-new-job.css - local styles for create-new-job.html */
+
+/* Tab styles */
+.tabbar { display:flex; gap:8px; margin-bottom:12px; }
+.tab { padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.05); background:transparent; cursor:pointer; }
+.tab.active { background: rgba(255,46,99,0.12); border-color: var(--accent); color:var(--accent); }
+
+/* Suggestions dropdown */
+.suggestions {
+  position:absolute;
+  left:0;
+  right:0;
+  background:#0f0f12;
+  border:1px solid rgba(255,255,255,0.05);
+  max-height:260px;
+  overflow:auto;
+  z-index:30;
+  border-radius:6px;
+  padding:8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+}
+.suggestions .item { padding:8px; border-radius:6px; cursor:pointer; }
+.suggestions .item:hover { background:rgba(255,255,255,0.02); }
+
+.muted-small { color:var(--muted); font-size:12px; margin-top:6px; display:block; }
+
+/* item cards and corrections */
+.item-card {
+  background:rgba(255,255,255,0.03);
+  padding:10px;
+  border-radius:6px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
+}
+.item-card .muted { color:var(--muted); }
+
+/* delete button */
+.delete-btn {
+  background:var(--error);
+  color:white;
+  border:none;
+  border-radius:4px;
+  width:26px;
+  height:26px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  font-size:12px;
+}
+
+/* small responsive adjustments */
+@media (max-width: 768px) {
+  .grid { grid-template-columns: 1fr; }
+  .item-add { grid-template-columns: 1fr; gap:8px; }
+}

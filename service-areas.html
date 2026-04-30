@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Areas | Jamallta Films India</title>
+  <meta name="description" content="Jamallta Films provides wedding photography, cinematography, and confidential video editing support across India, with a studio base at Rabon Rd, Deoghat, Solan, Himachal Pradesh.">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <link rel="canonical" href="https://jamallta.com/service-areas.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    :root {
+      --ink: #17120d;
+      --text: #2d241c;
+      --muted: #74695f;
+      --paper: #f8f7f2;
+      --soft: #eef1ed;
+      --cream: #fffdf8;
+      --gold: #b88a3d;
+      --gold-dark: #8b6427;
+      --sage: #53665d;
+      --line: rgba(45, 36, 28, 0.14);
+      --radius: 8px;
+      --shadow: 0 20px 54px rgba(23, 18, 13, 0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", Arial, sans-serif;
+      color: var(--text);
+      background: linear-gradient(180deg, #f8f7f2 0%, #ffffff 44%, #eef1ed 100%);
+      line-height: 1.65;
+    }
+    a { color: inherit; }
+    .container { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(248, 247, 242, 0.95);
+      backdrop-filter: blur(12px);
+    }
+    nav {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand { text-decoration: none; }
+    .brand strong {
+      display: block;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 1.7rem;
+      color: var(--ink);
+      line-height: 1;
+      letter-spacing: 0.03em;
+    }
+    .brand span {
+      display: block;
+      margin-top: 0.3rem;
+      color: var(--muted);
+      font-size: 0.72rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+    .nav-actions { display: flex; align-items: center; gap: 0.7rem; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.55rem;
+      min-height: 44px;
+      padding: 0.78rem 1rem;
+      border: 1px solid var(--ink);
+      border-radius: var(--radius);
+      background: var(--ink);
+      color: #fffaf2;
+      text-decoration: none;
+      font-weight: 800;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .btn.secondary {
+      background: transparent;
+      color: var(--ink);
+      border-color: rgba(23, 18, 13, 0.24);
+    }
+    .hero {
+      padding: 4rem 0 2rem;
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(280px, 0.45fr);
+      gap: 2rem;
+      align-items: end;
+    }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--gold-dark);
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+    }
+    h1, h2, h3 { color: var(--ink); line-height: 1.1; }
+    h1 {
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(2.6rem, 6vw, 5rem);
+      margin-bottom: 1rem;
+    }
+    .lead { color: #51473d; font-size: 1.08rem; max-width: 760px; }
+    .office {
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 0.55rem;
+    }
+    .office strong { color: var(--ink); }
+    .office p { color: var(--muted); }
+    .section { padding: 3rem 0; }
+    .section.alt { background: var(--soft); }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, 0.72fr) minmax(260px, 0.42fr);
+      gap: 2rem;
+      align-items: end;
+      margin-bottom: 1.4rem;
+    }
+    .section h2 {
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: clamp(2rem, 4vw, 3.2rem);
+    }
+    .section-head p, .card p { color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .card {
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: 0 16px 44px rgba(23, 18, 13, 0.08);
+    }
+    .card i {
+      color: var(--sage);
+      font-size: 1.35rem;
+      margin-bottom: 0.9rem;
+    }
+    .card h3 { margin-bottom: 0.55rem; font-size: 1.12rem; }
+    .states {
+      columns: 3;
+      column-gap: 2rem;
+      background: var(--cream);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      color: var(--muted);
+    }
+    .states li { break-inside: avoid; margin-bottom: 0.35rem; }
+    .cta {
+      margin: 3rem 0;
+      padding: 2rem;
+      border-radius: var(--radius);
+      background: linear-gradient(90deg, var(--ink), #25342e);
+      color: #fffaf2;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 1rem;
+      align-items: center;
+    }
+    .cta h2 { color: #fffaf2; font-family: "Playfair Display", Georgia, serif; font-size: clamp(2rem, 4vw, 3rem); }
+    .cta p { color: #e7dac7; margin-top: 0.5rem; }
+    .cta .btn { background: #fffaf2; color: var(--ink); border-color: #fffaf2; }
+    footer {
+      padding: 2rem 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      text-align: center;
+    }
+    footer a { text-decoration: none; color: var(--muted); }
+    @media (max-width: 900px) {
+      .hero, .section-head, .cta { grid-template-columns: 1fr; }
+      .grid { grid-template-columns: repeat(2, 1fr); }
+      .states { columns: 2; }
+    }
+    @media (max-width: 620px) {
+      nav, .nav-actions { align-items: flex-start; flex-direction: column; }
+      .nav-actions, .btn { width: 100%; }
+      .grid { grid-template-columns: 1fr; }
+      .states { columns: 1; }
+      .hero { padding-top: 2.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <nav aria-label="Service areas page navigation">
+        <a class="brand" href="index.html">
+          <strong>JAMALLTA</strong>
+          <span>Films Studio</span>
+        </a>
+        <div class="nav-actions">
+          <a class="btn secondary" href="index.html"><i class="fas fa-arrow-left" aria-hidden="true"></i> Home</a>
+          <a class="btn" href="https://wa.me/918091181135?text=Hi%20Jamallta%20Films%2C%20I%20want%20all%20India%20service%20details." target="_blank" rel="noopener"><i class="fab fa-whatsapp" aria-hidden="true"></i> Ask Availability</a>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="container hero">
+      <div>
+        <div class="eyebrow"><i class="fas fa-indian-rupee-sign" aria-hidden="true"></i> All India Service</div>
+        <h1>Wedding shoots and confidential video editing support across India.</h1>
+        <p class="lead">Jamallta Films is based in Solan, Himachal Pradesh, and supports clients, creators, photo-video studios, and production houses across India. Editing work can be handled remotely; shoot travel depends on date, location, team availability, and travel costs.</p>
+      </div>
+      <aside class="office">
+        <strong>Studio base</strong>
+        <p>Rabon Rd, Deoghat, Solan, Himachal Pradesh 173211</p>
+        <strong>Business hours</strong>
+        <p>Monday-Saturday: 10 AM-5 PM<br>Sunday: Closed</p>
+        <a class="btn secondary" href="https://maps.app.goo.gl/8r2fKMMV1wbvrcvr8" target="_blank" rel="noopener"><i class="fas fa-map-marked-alt" aria-hidden="true"></i> View Google Maps</a>
+      </aside>
+    </section>
+
+    <section class="section alt">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">Services by Area</div>
+            <h2>What can be done remotely and what needs travel.</h2>
+          </div>
+          <p>This keeps the claim honest: editing can be served nationally, while physical shoots are scheduled based on practical travel planning.</p>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <i class="fas fa-laptop" aria-hidden="true"></i>
+            <h3>All India video editing</h3>
+            <p>Wedding highlights, reels, full films, color correction, audio cleanup, album design, and white-label studio editing can be handled remotely anywhere in India.</p>
+          </article>
+          <article class="card">
+            <i class="fas fa-camera-retro" aria-hidden="true"></i>
+            <h3>Wedding shoot travel</h3>
+            <p>Photography, cinematography, pre-wedding, and drone coverage are available outside Solan based on date, distance, venue permissions, team size, and travel costs.</p>
+          </article>
+          <article class="card">
+            <i class="fas fa-user-shield" aria-hidden="true"></i>
+            <h3>Confidential studio support</h3>
+            <p>Studios and production houses can send projects from any state. Client names, project files, and final edits stay private unless permission is given.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="section-head">
+          <div>
+            <div class="eyebrow">India Coverage</div>
+            <h2>Service availability across Indian states and union territories.</h2>
+          </div>
+          <p>Remote editing support is available across India. Shoot bookings are confirmed after travel and schedule discussion.</p>
+        </div>
+        <ul class="states">
+          <li>Himachal Pradesh</li>
+          <li>Punjab</li>
+          <li>Haryana</li>
+          <li>Chandigarh</li>
+          <li>Delhi NCR</li>
+          <li>Uttarakhand</li>
+          <li>Uttar Pradesh</li>
+          <li>Rajasthan</li>
+          <li>Jammu & Kashmir</li>
+          <li>Ladakh</li>
+          <li>Madhya Pradesh</li>
+          <li>Maharashtra</li>
+          <li>Gujarat</li>
+          <li>Goa</li>
+          <li>Karnataka</li>
+          <li>Tamil Nadu</li>
+          <li>Kerala</li>
+          <li>Telangana</li>
+          <li>Andhra Pradesh</li>
+          <li>Odisha</li>
+          <li>West Bengal</li>
+          <li>Bihar</li>
+          <li>Jharkhand</li>
+          <li>Chhattisgarh</li>
+          <li>Assam</li>
+          <li>Sikkim</li>
+          <li>Arunachal Pradesh</li>
+          <li>Meghalaya</li>
+          <li>Manipur</li>
+          <li>Mizoram</li>
+          <li>Nagaland</li>
+          <li>Tripura</li>
+          <li>Andaman & Nicobar Islands</li>
+          <li>Lakshadweep</li>
+          <li>Puducherry</li>
+          <li>Dadra & Nagar Haveli and Daman & Diu</li>
+        </ul>
+
+        <div class="cta">
+          <div>
+            <h2>Need editing or shoot support outside Solan?</h2>
+            <p>Send your city, event date, service type, and delivery requirement. Jamallta Films will confirm availability and quote.</p>
+          </div>
+          <a class="btn" href="https://wa.me/918091181135?text=Hi%20Jamallta%20Films%2C%20I%20need%20service%20outside%20Solan." target="_blank" rel="noopener"><i class="fab fa-whatsapp" aria-hidden="true"></i> Check Availability</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p><a href="index.html">Home</a> | <a href="packages.html">Packages</a> | <a href="proof.html">Proof</a> | <a href="privacy.html">Privacy Policy</a> | <a href="terms.html">Terms</a></p>
+      <p>Copyright 2026 Jamallta Films. All India video editing and travel-based wedding shoot support.</p>
+    </div>
+  </footer>
+</body>
+</html>

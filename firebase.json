@@ -1,0 +1,24 @@
+{
+  "functions": {
+    "source": "customer/functions"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "firebase.email.json",
+      ".firebaserc",
+      "deploy.log",
+      "customer/functions/**",
+      "email-functions/**",
+      "**/.*",
+      "**/node_modules/**"
+    ]
+  }
+}

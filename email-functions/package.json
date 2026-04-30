@@ -1,0 +1,13 @@
+{
+  "name": "jamallta-email-functions",
+  "description": "Email automation functions for Jamallta Films",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^5.1.1",
+    "nodemailer": "^6.9.16"
+  }
+}

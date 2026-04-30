@@ -1,0 +1,22 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function isAdminEmail() {
+      return signedIn() && request.auth.token.email == "thakursandeepu@gmail.com";
+    }
+
+    // Public read for portfolio media; admin-only write.
+    match /media/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdminEmail();
+    }
+
+    // Default: block everything else.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

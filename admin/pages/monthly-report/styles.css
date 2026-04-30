@@ -1,0 +1,382 @@
+/* =========================
+   Final styles.css — fully merged & updated
+   - sticky/chart/layout fixes
+   - print: white Excel-style, KPI visible
+   - print: table starts directly under KPIs
+   - print: table won't cut on right side
+   - print: canvas forced visible, chart title dark + larger
+   - hides in-page print title/timestamp and footer in print
+   ========================= */
+
+:root{
+  --bg-very-dark: #0a0f1e;
+  --panel-dark:   #0f1734;
+  --panel-2:      #0b1224;
+  --accent:       #2f89ff;
+  --accent-2:     #1d5fd1;
+  --muted:        #a9b6ff;
+  --muted-2:      #9fb0ff;
+  --text:         #f1f4ff;
+  --subtle-border: #26336a;
+  --card-radius:  14px;
+  --card-shadow:  0 14px 28px rgba(0,0,0,.35);
+  --panel-glow:   0 0 0 1px rgba(47,137,255,.08) inset;
+
+  /* topbar height used to place sticky chart-title correctly */
+  --topbar-height: 72px;
+  
+  /* Chart colors */
+  --chart-red: #ff2e63;
+  --chart-blue: #08d9d6;
+  --chart-orange: #ff9a00;
+  --chart-green: #00ff88;
+  --chart-purple: #9d4edd;
+}
+
+/* Base */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:"Inter","Segoe UI",Arial,sans-serif;
+  background: radial-gradient(1200px 500px at 10% -10%, rgba(47,137,255,.15), transparent 60%), #0a0f1e;
+  color:var(--text);
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+}
+
+/* Print toggles */
+.no-print { display: block; }
+.only-print { display: none; }
+
+/* App */
+.app{
+  max-width:100%;
+  margin:0;
+  padding:16px;
+}
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+  height:var(--topbar-height);
+  background:linear-gradient(180deg,var(--panel-dark),var(--panel-2));
+  border:1px solid var(--subtle-border);
+  border-radius:14px;
+  padding:12px 14px;
+  box-shadow:var(--card-shadow);
+}
+.brand{display:none;}
+
+/* Controls */
+.controls{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  margin-left:auto;
+}
+input[type="month"]{
+  padding:8px 12px;
+  border-radius:12px;
+  border:1px solid var(--subtle-border);
+  background:#0b1224;
+  color:#fff;
+  font-size:14px;
+  font-weight:700;
+}
+.btn{
+  padding:8px 14px;
+  border-radius:12px;
+  border:0;
+  background:linear-gradient(180deg,var(--accent),var(--accent-2));
+  color:white;
+  cursor:pointer;
+  font-weight:800;
+  box-shadow:0 4px 12px rgba(0,0,0,0.4);
+  font-size:14px;
+  transition:all 0.2s ease;
+}
+.btn:hover{
+  transform:translateY(-1px);
+  box-shadow:0 6px 16px rgba(0,0,0,0.5);
+}
+.btn.ghost{
+  background:transparent;
+  border:1px solid var(--subtle-border);
+  color:var(--text);
+  font-weight:600;
+}
+.btn.ghost:hover{
+  background:rgba(47,137,255,.12);
+}
+
+/* Summary KPI */
+.summary{
+  display:flex;
+  gap:10px;
+  margin:8px 0 6px 0;   /* reduced gap so table prints immediately below */
+  flex-wrap:wrap;
+  page-break-inside:avoid;
+}
+.summary-item{
+  background:linear-gradient(180deg,var(--panel-dark),var(--panel-2));
+  padding:12px 16px;
+  border-radius:16px;
+  border:1px solid var(--subtle-border);
+  box-shadow:var(--panel-glow);
+  flex:1;
+  min-width:130px;
+  text-align:center;
+}
+.summary-item label{
+  display:block;
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:6px;
+  font-weight:500;
+  text-transform:uppercase;
+  letter-spacing:0.5px;
+}
+.summary-item div{
+  font-weight:800;
+  font-size:18px;
+  color:#ffd86b;
+}
+
+/* Chart card */
+.chart-card{
+  margin:6px 0 8px 0; /* reduced bottom gap before table */
+  background:linear-gradient(180deg,var(--panel-dark),var(--panel-2));
+  padding:16px;
+  border-radius:18px;
+  border:1px solid var(--subtle-border);
+  box-shadow:var(--card-shadow);
+  position:relative;
+  height:400px;
+  page-break-inside:avoid;
+}
+
+/* Chart title */
+.chart-title{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  background:linear-gradient(180deg,#101a3a,#0c1330);
+  padding:10px 16px;
+  border-radius:12px;
+  color:#a9b6ff;
+  font-weight:700;
+  font-size:16px;
+  white-space:nowrap;
+  position:sticky;
+  top:calc(var(--topbar-height) + 12px);
+  z-index:40;
+  box-shadow:0 10px 22px rgba(0,0,0,.5);
+  margin-bottom:15px;
+}
+
+/* canvas sizing */
+.chart-card canvas{
+  display:block;
+  width:100% !important;
+  height:320px !important;
+}
+
+/* Table area */
+.table-wrap{
+  overflow:auto;
+  background:linear-gradient(180deg,var(--panel-dark),var(--panel-2));
+  padding:12px;
+  border-radius:18px;
+  border:1px solid var(--subtle-border);
+  box-shadow:var(--card-shadow);
+  margin:0 0 20px 0; /* remove upper gap */
+  page-break-inside:avoid;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* Table layout fix to prevent cut */
+.grid{
+  width:100%;
+  max-width:100%;
+  table-layout:fixed;  /* table won’t expand & cut */
+  border-collapse:collapse;
+  font-size:13px;
+  color:var(--text);
+  word-break:break-word; /* wrap long text */
+}
+
+.grid thead th{
+  background:linear-gradient(180deg,#101a3a,#0c1330);
+  padding:14px 12px;
+  border-bottom:1px solid var(--subtle-border);
+  font-weight:700;
+  color:var(--muted-2);
+  font-size:13px;
+  white-space:nowrap;
+}
+.grid th,.grid td{
+  padding:12px;
+  border-bottom:1px solid rgba(38,51,106,.6);
+  vertical-align:middle;
+  white-space:normal;
+  word-break:break-word;
+  overflow-wrap:break-word;
+}
+
+/* Amount styling */
+.grid td:nth-child(6),
+.grid td:nth-child(9){
+  font-weight:600;
+  font-family:'Courier New', monospace;
+  color:#ffd86b;
+}
+
+/* Footer */
+.footer{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  color:var(--muted);
+  margin-top:20px;
+  font-size:13px;
+  padding-top:12px;
+  border-top:1px solid var(--subtle-border);
+}
+.footer .left,.footer .right{flex:1}
+.footer .center{text-align:center;flex:2}
+
+/* Responsive tweaks */
+@media(max-width:900px){
+  .app{padding:10px}
+  .topbar{flex-direction:column;gap:10px;height:auto;margin-bottom:14px}
+  .controls{width:100%;justify-content:center;flex-wrap:wrap}
+  .summary{gap:8px}
+  .summary-item{min-width:110px;padding:10px 12px}
+  .summary-item label{font-size:11px}
+  .summary-item div{font-size:16px}
+  .chart-card{height:350px;padding:12px}
+  .chart-card canvas{height:280px !important}
+  .grid thead th{font-size:12px;padding:10px 8px}
+  .grid th,.grid td{padding:10px 8px;font-size:12px}
+}
+@media(max-width:600px){
+  .topbar{padding:10px}
+  .controls{flex-direction:column;align-items:stretch}
+  input[type="month"]{width:100%}
+  .btn{width:100%;justify-content:center}
+  .summary{flex-direction:column}
+  .summary-item{min-width:100%;text-align:left;display:flex;justify-content:space-between;align-items:center}
+  .summary-item label{margin-bottom:0}
+  .chart-card{height:auto}
+  .chart-title{font-size:14px; text-align:center}
+  .chart-card canvas{height:220px !important}
+  .table-wrap{padding:8px}
+  .grid{min-width:880px}
+}
+
+/* ------------------ PRINT / A4 (Excel-style white + FIXES) ------------------ */
+@page{size:A4;margin:15mm 10mm}
+@media print{
+  body{background:#fff !important;color:#000 !important;font-size:12px !important}
+  .no-print{display:none !important}
+  .only-print{display:block !important}
+  .app{padding:0 !important;margin:0 !important;max-width:100% !important}
+  .print-title{display:none !important}       /* hide in-page print title */
+  #printedAt{display:none !important}         /* hide printedAt timestamp element */
+  footer,.footer,.pageNumber{display:none !important}
+  .topbar{display:none !important}
+
+  /* KPI */
+  .summary{margin:5mm 0 4mm 0 !important;page-break-inside:avoid}
+  .summary-item{background:#f5f5f5 !important;border:1px solid #ddd !important;color:#000 !important;padding:8px 10px !important}
+
+  /* Chart block forced visible + printable */
+  .chart-card{
+    display:block !important;
+    margin:4mm 0 !important;
+    background:#fff !important;
+    border:1px solid #ccc !important;
+    padding:5mm !important;
+    box-shadow:none !important;
+    page-break-inside:avoid;
+    height:auto !important;
+    overflow:visible !important;
+    -webkit-print-color-adjust:exact !important;
+    print-color-adjust:exact !important;
+  }
+
+  /* Chart title darker + larger for print */
+  .chart-title{
+    position:static !important;
+    box-shadow:none;
+    background:#f0f0f0 !important;
+    color:#000 !important;
+    font-size:18px !important;
+    font-weight:800 !important;
+    margin-bottom:6mm !important;
+    border-bottom:1px solid #ccc;
+    border-radius:4px;
+    padding:6px 10px !important;
+    text-align:center !important;
+  }
+
+  /* Force canvas to render and be visible */
+  .chart-card canvas{
+    display:block !important;
+    background:#fff !important;
+    height:260px !important;
+    width:100% !important;
+    image-rendering:auto !important;
+  }
+  .chartjs-legend, .chartjs-render-monitor{color:#000 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important}
+
+  /* TABLE */
+  .table-wrap{
+    margin-top:4mm !important;             /* table directly under KPI/chart */
+    page-break-before:avoid !important;    /* NO PAGE BREAK before table if space exists */
+    background:#fff !important;
+    border:1px solid #ccc !important;
+    padding:3mm !important;
+    overflow:visible !important;
+  }
+  .grid{
+    width:100% !important;
+    max-width:100% !important;
+    table-layout:fixed !important;         /* prevent horizontal overflow */
+    word-break:break-word !important;
+  }
+  .grid th,.grid td{
+    padding:1.4mm !important;              /* reduced padding for print fit */
+    font-size:10px !important;
+    white-space:normal !important;
+  }
+  .grid thead th{
+    background:#f5f5f5 !important;
+    border:1px solid #ccc !important;
+    color:#000 !important;
+    font-weight:700;
+  }
+
+  /* darker table text */
+  .grid th, .grid td { color: #111 !important; }
+
+  *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+}
+
+/* Loading animation */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.loading{animation:pulse 1.5s infinite}
+
+/* Scrollbar styling */
+.table-wrap::-webkit-scrollbar{height:8px;width:8px}
+.table-wrap::-webkit-scrollbar-track{background:rgba(255,255,255,0.05);border-radius:4px}
+.table-wrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+.table-wrap::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.2)}
+
+/* Chart tooltip styling */
+.chartjs-tooltip{background:rgba(15,19,22,0.95) !important;border:1px solid rgba(255,255,255,0.1) !important;border-radius:6px !important;padding:10px !important}
+
+/* Responsive chart legend */
+@media (max-width: 768px){ .chartjs-legend{font-size:10px !important} }
