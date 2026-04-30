@@ -310,15 +310,17 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
   });
 }
 
-async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, advance = 0 }) {
+async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, advance = 0, jobTotal = 0, jobPending = 0 }) {
   const project = projectName || jobNo || "your project";
   const subject = `Project Ready for Delivery | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
   const accountName = studioName || project;
-  const pendingUpiUrl = buildUpiUrl(pending, `Studio pending payment ${accountName}`);
-  const fullUpiUrl = buildUpiUrl(total, `Studio full payment ${accountName}`);
-  const pendingPayUrl = buildPaymentPageUrl(pending, `Studio pending payment ${accountName}`, "pending");
-  const fullPayUrl = buildPaymentPageUrl(total, `Studio full payment ${accountName}`, "full");
+  const currentJobAmount = Math.max(Number(jobPending || jobTotal || 0), 0);
+  const currentBalanceAmount = Math.max(Number(pending || total || 0), 0);
+  const jobUpiUrl = buildUpiUrl(currentJobAmount, `Job payment ${jobNo || project}`);
+  const fullUpiUrl = buildUpiUrl(currentBalanceAmount, `Full balance payment ${accountName}`);
+  const jobPayUrl = buildPaymentPageUrl(currentJobAmount, `Job payment ${jobNo || project}`, "job");
+  const fullPayUrl = buildPaymentPageUrl(currentBalanceAmount, `Full balance payment ${accountName}`, "full");
   const safeItems = Array.isArray(items) ? items : [];
   const text = [
     `Hello ${studioName || "Client"},`,
@@ -340,7 +342,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
     `Paid Amount: ${formatMoney(paid)}`,
     `Current Balance: ${formatMoney(pending)}`,
     pending > 0 ? `UPI ID: ${upiId}` : "",
-    pending > 0 ? `Pay pending amount: ${pendingUpiUrl}` : "",
+    currentJobAmount > 0 ? `Pay this job: ${jobUpiUrl}` : "",
     total > 0 ? `Full payment: ${fullUpiUrl}` : "",
     "",
     "Please reply to this email or contact us on WhatsApp to confirm delivery and any pending details.",
@@ -437,29 +439,29 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
             </div>
           ` : ""}
 
-          ${(pending > 0 || total > 0) ? `
+          ${(currentJobAmount > 0 || currentBalanceAmount > 0) ? `
             <div style="background:#17120d;color:#fffaf2;border-radius:12px;padding:18px;margin:22px 0">
               <div style="font-size:19px;font-weight:700;margin-bottom:8px">Payment Options</div>
               <div style="line-height:1.6;color:#e7dac7">Mobile par button tap karte hi Google Pay/UPI app open hoga. Desktop par same button QR code page kholega.</div>
               <div style="background:#fffaf2;color:#17120d;border-radius:8px;padding:12px;margin:14px 0 0;font-weight:700">UPI ID: ${upiId}</div>
               <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:16px">
                 <tr>
-                  ${pending > 0 ? `
+                  ${currentJobAmount > 0 ? `
                     <td style="vertical-align:top;padding:0 0 12px;width:100%;display:block">
                       <div style="background:#241b14;border:1px solid #3c3026;border-radius:12px;padding:14px">
-                        <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Pay Current Balance</div>
-                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(pending)}</div>
-                        <a href="${pendingPayUrl}" style="display:block;background:#b88a3d;color:#17120d;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Pay Pending</a>
+                        <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Pay This Job</div>
+                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(currentJobAmount)}</div>
+                        <a href="${jobPayUrl}" style="display:block;background:#b88a3d;color:#17120d;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Pay This Job</a>
                       </div>
                     </td>
                   ` : ""}
                 </tr>
                 <tr>
-                  ${total > 0 ? `
+                  ${currentBalanceAmount > 0 ? `
                     <td style="vertical-align:top;padding:0;width:100%;display:block">
                       <div style="background:#fffaf2;color:#17120d;border-radius:12px;padding:14px">
                         <div style="color:#7c6b57;font-size:12px;text-transform:uppercase;font-weight:700">Full Pay Current Balance</div>
-                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(total)}</div>
+                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(currentBalanceAmount)}</div>
                         <a href="${fullPayUrl}" style="display:block;background:#17120d;color:#fffaf2;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Full Pay</a>
                       </div>
                     </td>
@@ -609,6 +611,9 @@ exports.autoSendProjectReadyEmail = functions.firestore
       return null;
     }
 
+    const currentJobTotals = getJobTotals(after);
+    const studioTotals = await getStudioTotalsForJob(after);
+
     await sendProjectReadyMail({
       to: customer.email,
       studioName: customer.studioName || after.studioName || after.customerName || "",
@@ -616,7 +621,9 @@ exports.autoSendProjectReadyEmail = functions.firestore
       jobNo: after.jobNo || "",
       readyDate: formatJobDate(after.dataReadyDate || after.dataDeliverDate || new Date()),
       items: after.itemsAdded || [],
-      ...await getStudioTotalsForJob(after)
+      ...studioTotals,
+      jobTotal: currentJobTotals.total,
+      jobPending: currentJobTotals.pending
     });
 
     await change.after.ref.update({
