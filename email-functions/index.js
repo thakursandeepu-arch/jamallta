@@ -182,7 +182,9 @@ async function getStudioTotalsForJob(job = {}) {
     return sum;
   }, { total: 0, paid: 0, pending: 0 });
 
-  const currentBalance = customerBalance != null ? Math.max(customerBalance, 0) : Math.max(totals.pending, 0);
+  const currentBalance = customerBalance != null
+    ? Math.max(customerBalance, totals.pending, 0)
+    : Math.max(totals.pending, 0);
   return {
     total: currentBalance,
     paid: totals.paid,
