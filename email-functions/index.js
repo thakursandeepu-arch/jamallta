@@ -122,6 +122,8 @@ function getJobTotals(job = {}) {
 
 async function getStudioTotalsForJob(job = {}) {
   const jobs = new Map();
+  let customerBalance = null;
+  let customerAdvance = 0;
   const addSnapshotJobs = (snap) => {
     snap.forEach(docSnap => {
       const data = docSnap.data() || {};
@@ -130,6 +132,13 @@ async function getStudioTotalsForJob(job = {}) {
   };
 
   if (job.customerId) {
+    const customerSnap = await db.doc(`customers/${job.customerId}`).get();
+    if (customerSnap.exists) {
+      const customerData = customerSnap.data() || {};
+      if (customerData.balance != null) customerBalance = Number(customerData.balance || 0);
+      customerAdvance = Number(customerData.advanceAmount || 0);
+    }
+
     const byCustomer = await db.collection("jobs")
       .where("customerId", "==", job.customerId)
       .get();
@@ -149,14 +158,39 @@ async function getStudioTotalsForJob(job = {}) {
     }
   }
 
+  if (customerBalance == null) {
+    for (const name of names) {
+      const customerByStudio = await db.collection("customers")
+        .where("studioName", "==", name)
+        .limit(1)
+        .get();
+      if (!customerByStudio.empty) {
+        const customerData = customerByStudio.docs[0].data() || {};
+        if (customerData.balance != null) customerBalance = Number(customerData.balance || 0);
+        customerAdvance = Number(customerData.advanceAmount || 0);
+        break;
+      }
+    }
+  }
+
   const list = jobs.size ? Array.from(jobs.values()) : [job];
-  return list.reduce((sum, item) => {
+  const totals = list.reduce((sum, item) => {
     const totals = getJobTotals(item);
     sum.total += totals.total;
     sum.paid += totals.paid;
     sum.pending += totals.pending;
     return sum;
   }, { total: 0, paid: 0, pending: 0 });
+
+  const currentBalance = customerBalance != null ? Math.max(customerBalance, 0) : Math.max(totals.pending, 0);
+  return {
+    total: currentBalance,
+    paid: totals.paid,
+    pending: currentBalance,
+    workTotal: totals.total,
+    jobsPending: totals.pending,
+    advance: customerAdvance
+  };
 }
 
 async function findCustomerForJob(job = {}) {
@@ -274,7 +308,7 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
   });
 }
 
-async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0 }) {
+async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, advance = 0 }) {
   const project = projectName || jobNo || "your project";
   const subject = `Project Ready for Delivery | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
@@ -300,9 +334,9 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
       return `- ${name}: ${qty || "-"} x ${formatMoney(price)} = ${formatMoney(rowTotal)}`;
     }),
     "",
-    `Studio Total Amount: ${formatMoney(total)}`,
+    `Total Work Amount: ${formatMoney(workTotal || total)}`,
     `Paid Amount: ${formatMoney(paid)}`,
-    `Studio Pending Amount: ${formatMoney(pending)}`,
+    `Current Balance: ${formatMoney(pending)}`,
     pending > 0 ? `UPI ID: ${upiId}` : "",
     pending > 0 ? `Pay pending amount: ${pendingUpiUrl}` : "",
     total > 0 ? `Full payment: ${fullUpiUrl}` : "",
@@ -378,8 +412,8 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
           <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0 10px;margin:14px 0 18px">
             <tr>
               <td style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">Studio Total</div>
-                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(total)}</div>
+                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">Total Work</div>
+                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(workTotal || total)}</div>
               </td>
               <td style="width:10px"></td>
               <td style="background:#f2fbf5;border:1px solid #cfead8;border-radius:12px;padding:14px;width:33.33%">
@@ -388,11 +422,18 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
               </td>
               <td style="width:10px"></td>
               <td style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">Studio Pending</div>
+                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">Current Balance</div>
                 <div style="font-size:18px;font-weight:700;color:#8a4b08;margin-top:5px">${formatMoney(pending)}</div>
               </td>
             </tr>
           </table>
+
+          ${(jobsPending > 0 || advance > 0) ? `
+            <div style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:13px 14px;margin:-6px 0 18px;color:#51473d;line-height:1.55;font-size:13px">
+              ${jobsPending > 0 ? `<b>Jobs pending:</b> ${formatMoney(jobsPending)} ` : ""}
+              ${advance > 0 ? `<br><b>Advance:</b> ${formatMoney(advance)}` : ""}
+            </div>
+          ` : ""}
 
           ${(pending > 0 || total > 0) ? `
             <div style="background:#17120d;color:#fffaf2;border-radius:12px;padding:18px;margin:22px 0">
@@ -404,7 +445,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
                   ${pending > 0 ? `
                     <td style="vertical-align:top;padding:0 0 12px;width:100%;display:block">
                       <div style="background:#241b14;border:1px solid #3c3026;border-radius:12px;padding:14px">
-                        <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Studio Pending Pay</div>
+                        <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Pay Current Balance</div>
                         <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(pending)}</div>
                         <a href="${pendingPayUrl}" style="display:block;background:#b88a3d;color:#17120d;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Pay Pending</a>
                       </div>
@@ -415,7 +456,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
                   ${total > 0 ? `
                     <td style="vertical-align:top;padding:0;width:100%;display:block">
                       <div style="background:#fffaf2;color:#17120d;border-radius:12px;padding:14px">
-                        <div style="color:#7c6b57;font-size:12px;text-transform:uppercase;font-weight:700">Studio Full Pay</div>
+                        <div style="color:#7c6b57;font-size:12px;text-transform:uppercase;font-weight:700">Full Pay Current Balance</div>
                         <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(total)}</div>
                         <a href="${fullPayUrl}" style="display:block;background:#17120d;color:#fffaf2;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Full Pay</a>
                       </div>
@@ -497,7 +538,10 @@ exports.paymentPage = functions.https.onRequest((req, res) => {
   <script>
     const upiUrl = ${JSON.stringify(upiUrl)};
     const qrUrl = "https://quickchart.io/qr?size=320&margin=2&text=" + encodeURIComponent(upiUrl);
-    function isMobileDevice(){return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)}
+    function isMobileDevice(){
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
+        (navigator.maxTouchPoints && navigator.maxTouchPoints > 1 && Math.min(screen.width, screen.height) < 900);
+    }
     function openPayment(){
       if(isMobileDevice()){
         document.getElementById("status").textContent = "UPI app open ho rahi hai. Agar open na ho, Pay Now dobara tap karein.";
