@@ -191,7 +191,7 @@ function requestNotificationsPermission() {
 }
 
 function openLoginPage() {
-  window.location.href = "/login/index.html";
+  window.location.href = "/login/login.html";
 }
 
 function showBrowserNotification(title, message) {
@@ -518,7 +518,7 @@ async function startPayment(amount, jobId) {
 }
 
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return location.href = "/login/index.html";
+  if (!user) return location.href = "/login/login.html";
 
   if (emailEl) emailEl.textContent = user.email || "-";
   currentUserEmail = user.email || "";
