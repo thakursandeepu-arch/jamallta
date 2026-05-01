@@ -1,7 +1,14 @@
 {
-  "functions": {
-    "source": "customer/functions"
-  },
+  "functions": [
+    {
+      "source": "customer/functions",
+      "codebase": "customer"
+    },
+    {
+      "source": "auth-functions",
+      "codebase": "authsync"
+    }
+  ],
   "firestore": {
     "rules": "firestore.rules"
   },
@@ -15,6 +22,11 @@
       "firebase.email.json",
       ".firebaserc",
       "deploy.log",
+      "*.log",
+      "# Code Citations.md",
+      ".git/**",
+      ".firebase/**",
+      "auth-functions/**",
       "customer/functions/**",
       "email-functions/**",
       "**/.*",

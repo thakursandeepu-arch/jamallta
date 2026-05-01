@@ -36,6 +36,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const functions = getFunctions(app, "us-central1");
 const callUpdateAuthUser = httpsCallable(functions, "updateAuthUser");
+const updateAuthUserHttpUrl = "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/updateAuthUserHttp";
 
 
 onAuthStateChanged(auth, (user) => {
@@ -979,15 +980,37 @@ function buildEmployeePayload() {
 
 async function ensureAuthUser({ oldEmail, newEmail, phone, displayName }) {
   try {
-    const res = await callUpdateAuthUser({
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) throw new Error("Missing admin login token");
+    const payload = {
       oldEmail: (oldEmail || "").trim(),
       newEmail: (newEmail || "").trim(),
       phone: (phone || "").trim(),
       displayName: (displayName || "").trim()
+    };
+    const res = await fetch(updateAuthUserHttpUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
     });
-    return { ok: true, data: res?.data || {} };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `Auth sync failed (${res.status})`);
+    return { ok: true, data };
   } catch (err) {
-    return { ok: false, error: err };
+    try {
+      const res = await callUpdateAuthUser({
+        oldEmail: (oldEmail || "").trim(),
+        newEmail: (newEmail || "").trim(),
+        phone: (phone || "").trim(),
+        displayName: (displayName || "").trim()
+      });
+      return { ok: true, data: res?.data || {} };
+    } catch (fallbackErr) {
+      return { ok: false, error: fallbackErr || err };
+    }
   }
 }
 
