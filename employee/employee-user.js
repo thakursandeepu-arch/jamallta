@@ -552,6 +552,11 @@ async function punchOutNow() {
     if (!currentAttendanceData) currentAttendanceData = {};
     currentAttendanceData.punchOutAt = { seconds: Date.now() / 1000 };
     currentAttendanceData.updatedAt = { seconds: Date.now() / 1000 };
+    await createAdminNotification({
+      title: "Punch Out",
+      message: `${currentUserData?.fullName || currentUserEmail || "Employee"} punched out.`,
+      source: "attendance",
+    });
     updatePunchButtons();
     showToast("Punch out successful");
   } catch (err) {
@@ -1990,4 +1995,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 });
-

@@ -257,10 +257,17 @@ btn.onclick = async () => {
   } catch (err) {
     stopLoading();
     const code = err?.code || "";
+    console.error("Login failed:", err);
     if (code === "auth/user-not-found") {
       errEl.textContent = "Account not found. Ask admin to sync users or use Forgot password.";
     } else if (code === "auth/wrong-password") {
       errEl.textContent = "Invalid email or password";
+    } else if (code === "auth/unauthorized-domain") {
+      errEl.textContent = "Localhost is not allowed in Firebase Auth. Add 127.0.0.1 / localhost in Firebase Authorized domains.";
+    } else if (code === "auth/invalid-api-key" || code === "auth/api-key-not-valid") {
+      errEl.textContent = "Firebase API key is blocked for this local URL.";
+    } else if (code === "auth/network-request-failed" || String(err?.message || "").includes("403")) {
+      errEl.textContent = "Firebase blocked this local login request. Check API key restrictions / authorized domains.";
     } else {
       errEl.textContent = "Invalid email or password";
     }

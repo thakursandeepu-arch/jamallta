@@ -85,6 +85,29 @@ let currentUserData = null;
 let paymentUnsub = null;
 let leaveUnsub = null;
 
+async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
+  try {
+    await addDoc(collection(db, "notifications"), {
+      audience: "admin",
+      title,
+      message,
+      studioName,
+      jobNo,
+      source,
+      createdBy: currentUserEmail || currentUserData?.fullName || "",
+      employeeId:
+        currentUserData?.employeeId ||
+        currentUserData?.empId ||
+        currentUserData?.employeeID ||
+        "",
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.error("createAdminNotification error:", err);
+  }
+}
+
 const setIfExists = (id, value) => {
   const el = document.getElementById(id);
   if (el) el.value = value;
@@ -112,6 +135,49 @@ const parseSalaryNumber = (value) => {
   const num = Number(String(value ?? "").replace(/,/g, "").trim());
   return isNaN(num) ? null : num;
 };
+
+function normalizeSalaryHistory(history, fallbackSalary = "", fallbackDate = "") {
+  const rows = Array.isArray(history) ? history : [];
+  const normalized = rows
+    .map((r) => ({
+      salary: parseSalaryNumber(r?.salary ?? r?.amount),
+      effectiveFrom: toYMD(r?.effectiveFrom || r?.date || r?.createdAt || fallbackDate),
+    }))
+    .filter((r) => r.salary != null && r.effectiveFrom)
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+
+  const fallback = parseSalaryNumber(fallbackSalary);
+  if (fallback != null && !normalized.length) {
+    normalized.push({
+      salary: fallback,
+      effectiveFrom: fallbackDate || toYMD(new Date()),
+    });
+  }
+  return normalized;
+}
+
+function salaryForDate(ymd, data = currentUserData) {
+  const fallback = data?.salary || data?.monthlySalary || data?.pay || 0;
+  const rows = normalizeSalaryHistory(
+    data?.salaryHistory,
+    fallback,
+    data?.joiningDate || data?.salaryEffectiveFrom || ymd
+  );
+  const target = ymd || toYMD(new Date());
+  let active = null;
+  rows.forEach((r) => {
+    if (r.effectiveFrom <= target) active = r.salary;
+  });
+  return active ?? parseSalaryNumber(fallback) ?? 0;
+}
+
+function dailyEarningsForDate({ status, workedMinutes, ymd, data = currentUserData }) {
+  return dailyEarnings({
+    status,
+    workedMinutes,
+    monthlySalary: salaryForDate(ymd, data),
+  });
+}
 
 function toYMD(value) {
   if (!value) return "";
@@ -531,7 +597,7 @@ async function loadEmployeeInfo() {
       let absent = 0;
       let leave = 0;
       let holidayPresent = 0;
-      let holidayBonus = 0;
+      const payableRows = [];
       snap.forEach((docSnap) => {
         const r = docSnap.data() || {};
         const d = toDate(r.date || r.attendanceDate || r.createdAt || r.updatedAt);
@@ -549,23 +615,39 @@ async function loadEmployeeInfo() {
         if (offDay) {
           if (st === "present" || st === "half-day") {
             holidayPresent += st === "half-day" ? 0.5 : 1;
-            holidayBonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: baseSalary });
+            payableRows.push({ status: st, workedMinutes, ymd });
           }
           return;
         }
-        if (st === "present") presentWork += 1;
-        else if (st === "half-day") presentWork += 0.5;
-        else if (st === "absent") absent += 1;
-        else if (st === "leave") leave += 1;
+        if (st === "present") {
+          presentWork += 1;
+          payableRows.push({ status: st, workedMinutes, ymd });
+        } else if (st === "half-day") {
+          presentWork += 0.5;
+          payableRows.push({ status: st, workedMinutes, ymd });
+        } else if (st === "absent") absent += 1;
+        else if (st === "leave") {
+          leave += 1;
+          payableRows.push({ status: st, workedMinutes, ymd });
+        }
       });
       const presentDisplay = presentWork + holidayPresent;
       if (attPresent) attPresent.textContent = presentDisplay;
       if (attAbsent) attAbsent.textContent = absent;
       if (attLeave) attLeave.textContent = leave;
 
-      const basePayable = calcPayableSalary(baseSalary, presentWork, leave);
-      const payable = basePayable == null ? 0 : basePayable + holidayBonus;
-      setIfExists("ePayableSalary", basePayable == null ? "-" : formatSalary(payable));
+      let leaveSeen = 0;
+      const payable = payableRows
+        .sort((a, b) => String(a.ymd || "").localeCompare(String(b.ymd || "")))
+        .reduce((sum, row) => {
+          if (row.status === "leave") {
+            leaveSeen += 1;
+            const daily = dailyEarningsForDate({ status: "present", workedMinutes: null, ymd: row.ymd, data });
+            return sum + (leaveSeen <= 3 ? daily : Math.round(daily * 0.5));
+          }
+          return sum + dailyEarningsForDate({ status: row.status, workedMinutes: row.workedMinutes, ymd: row.ymd, data });
+        }, 0);
+      setIfExists("ePayableSalary", formatSalary(payable));
     });
   } catch (err) {
     console.error("loadEmployeeInfo error:", err);
@@ -978,7 +1060,7 @@ function buildSalarySlipHtml({ name, empId, baseSalary, rows, nextHolidayText })
       <td>${r.present}</td>
       <td>${r.leave}</td>
       <td>${r.absent}</td>
-      <td>${baseText}</td>
+      <td>${r.baseSalaryText || baseText}</td>
       <td>${formatSalary(r.payable)}</td>
     </tr>
   `).join("");
@@ -1140,7 +1222,7 @@ async function generateSalarySlip() {
       if (!d) return;
       const key = monthKey(d);
       if (!byMonth.has(key)) {
-        byMonth.set(key, { present: 0, leave: 0, absent: 0, bonus: 0 });
+        byMonth.set(key, { present: 0, leave: 0, absent: 0, entries: [] });
       }
       const st = String(r.status || "").toLowerCase();
       const row = byMonth.get(key);
@@ -1151,14 +1233,21 @@ async function generateSalarySlip() {
         : minutesBetween(r.punchInAt, r.punchOutAt);
       if (offDay) {
         if (st === "present" || st === "half-day") {
-          row.bonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: baseSalary });
+          row.entries.push({ status: st, workedMinutes, ymd });
         }
         return;
       }
-      if (st === "present") row.present += 1;
-      else if (st === "half-day") row.present += 0.5;
+      if (st === "present") {
+        row.present += 1;
+        row.entries.push({ status: st, workedMinutes, ymd });
+      }
+      else if (st === "half-day") {
+        row.present += 0.5;
+        row.entries.push({ status: st, workedMinutes, ymd });
+      }
       else if (st === "leave") row.leave += 1;
       else if (st === "absent") row.absent += 1;
+      if (st === "leave") row.entries.push({ status: st, workedMinutes, ymd });
     });
 
     const mode = salarySlipMode?.value || "all";
@@ -1177,12 +1266,34 @@ async function generateSalarySlip() {
       .sort();
     const rows = keys.map((k) => {
       const v = byMonth.get(k);
+      let leaveSeen = 0;
+      const payable = [...(v.entries || [])]
+        .sort((a, b) => String(a.ymd || "").localeCompare(String(b.ymd || "")))
+        .reduce((sum, entry) => {
+          if (entry.status === "leave") {
+            leaveSeen += 1;
+            const daily = dailyEarningsForDate({ status: "present", workedMinutes: null, ymd: entry.ymd });
+            return sum + (leaveSeen <= 3 ? daily : Math.round(daily * 0.5));
+          }
+          return sum + dailyEarningsForDate({
+            status: entry.status,
+            workedMinutes: entry.workedMinutes,
+            ymd: entry.ymd,
+          });
+        }, 0);
+      const monthStartYmd = `${k}-01`;
+      const monthEndYmd = `${k}-${String(new Date(monthKeyToDate(k).getFullYear(), monthKeyToDate(k).getMonth() + 1, 0).getDate()).padStart(2, "0")}`;
+      const startSalary = salaryForDate(monthStartYmd);
+      const endSalary = salaryForDate(monthEndYmd);
       return {
         label: formatMonthLabel(k),
         present: v.present,
         leave: v.leave,
         absent: v.absent,
-        payable: (calcPayableSalary(baseSalary, v.present, v.leave) || 0) + (v.bonus || 0),
+        baseSalaryText: startSalary === endSalary
+          ? formatSalary(startSalary)
+          : `${formatSalary(startSalary)} -> ${formatSalary(endSalary)}`,
+        payable,
       };
     });
 
@@ -1532,6 +1643,9 @@ if (saveProjectChanges) {
   saveProjectChanges.addEventListener("click", async () => {
     if (!currentEditingJobId || !currentEditingJobData) return;
     try {
+      const wasReady =
+        !!currentEditingJobData?.dataReadyDate ||
+        String(currentEditingJobData?.status || "").toLowerCase() === "ready";
       const updates = {
         projectName: editProjectName ? editProjectName.value.trim() : currentEditingJobData.projectName || "",
         dataReadyDate: editDataReadyDate ? editDataReadyDate.value : currentEditingJobData.dataReadyDate || "",
@@ -1542,6 +1656,18 @@ if (saveProjectChanges) {
         editorName: currentUserData?.fullName || currentUserEmail,
       };
       await updateDoc(doc(db, "jobs", currentEditingJobId), updates);
+      const isReadyNow =
+        !!updates.dataReadyDate ||
+        String(updates.status || currentEditingJobData?.status || "").toLowerCase() === "ready";
+      if (!wasReady && isReadyNow) {
+        await createAdminNotification({
+          title: "Job Ready",
+          message: `Job ready for ${currentEditingJobData?.studioName || "Studio"} (${updates.projectName || currentEditingJobData?.projectName || "Project"}).`,
+          studioName: currentEditingJobData?.studioName || "",
+          jobNo: currentEditingJobData?.jobNo || "",
+          source: "job_ready",
+        });
+      }
       showToast("Project updated");
       closeEditor();
     } catch (err) {

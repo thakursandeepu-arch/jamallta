@@ -100,6 +100,7 @@ const fDepartment = document.getElementById("fDepartment");
 const fPhone = document.getElementById("fPhone");
 const fUpiId = document.getElementById("fUpiId");
 const fSalary = document.getElementById("fSalary");
+const fSalaryEffectiveFrom = document.getElementById("fSalaryEffectiveFrom");
 const fBankName = document.getElementById("fBankName");
 const fPayableSalary = document.getElementById("fPayableSalary");
 const fAccountNumber = document.getElementById("fAccountNumber");
@@ -138,6 +139,8 @@ let isAssigningIds = false;
 let didAutoAssignIds = false;
 let empAttendanceUnsub = null;
 let currentEmpSalary = "";
+let currentEmpSalaryHistory = [];
+let currentEmpData = null;
 let isEditMode = false;
 let profileAttendanceDocId = null;
 let attendanceRecords = [];
@@ -449,10 +452,10 @@ function renderMonthlyAttendanceRows(rows) {
     const inTime = r.punchIn || "--:--";
     const outTime = r.punchOut || "--:--";
     const worked = r.worked || "--";
-    const earned = dailyEarnings({
+    const earned = dailyEarningsForDate({
       status: r.status,
       workedMinutes: r.workedMinutes,
-      monthlySalary: currentEmpSalary
+      ymd: date
     });
     return `
       <tr>
@@ -510,7 +513,7 @@ function renderEmployeeAttendanceSummary(records) {
     if (offDay) {
       if (st === "present" || st === "half-day") {
         holidayPresent += st === "half-day" ? 0.5 : 1;
-        holidayBonus += dailyEarnings({ status: st, workedMinutes, monthlySalary: currentEmpSalary });
+        holidayBonus += dailyEarningsForDate({ status: st, workedMinutes, ymd });
       }
     } else {
       if (st === "present") presentWork += 1;
@@ -527,7 +530,8 @@ function renderEmployeeAttendanceSummary(records) {
       punchIn,
       punchOut,
       worked,
-      workedMinutes
+      workedMinutes,
+      offDay
     });
   });
 
@@ -547,8 +551,8 @@ function renderEmployeeAttendanceSummary(records) {
   if (aAbsent) aAbsent.textContent = formatCount(absent);
   if (aLeave) aLeave.textContent = formatCount(leave);
 
-  const basePayable = calcPayableSalary(currentEmpSalary, presentWork, leave);
-  const payable = basePayable == null ? 0 : basePayable + holidayBonus;
+  const basePayable = calculatePayableFromAttendanceRows(monthlyRows);
+  const payable = basePayable == null ? 0 : basePayable;
   if (mPayableSalary) mPayableSalary.textContent = basePayable == null ? "0" : formatSalary(payable);
   if (fPayableSalary) fPayableSalary.value = basePayable == null ? "0" : formatSalary(payable);
   if (payAmount && (!payAmount.value || payAmount.value === "0")) {
@@ -739,13 +743,19 @@ function closeModal() {
 }
 
 function resetForm() {
-  [fName, fEmail, fRole, fDepartment, fPhone, fUpiId, fSalary, fBankName, fPayableSalary, fAccountNumber, fEmployeeId, fIfsc, fCurrent, fJoinDate, fExp, fSkills, fShiftStart, fShiftEnd].forEach(i => i.value = "");
+  [fName, fEmail, fRole, fDepartment, fPhone, fUpiId, fSalary, fSalaryEffectiveFrom, fBankName, fPayableSalary, fAccountNumber, fEmployeeId, fIfsc, fCurrent, fJoinDate, fExp, fSkills, fShiftStart, fShiftEnd].forEach(i => {
+    if (i) i.value = "";
+  });
   fEmployeeId.value = nextEmployeeId();
   fEmployeeId.readOnly = true;
   if (fJoinDate) {
     fJoinDate.value = new Date().toISOString().slice(0, 10);
     syncExperience();
   }
+  if (fSalaryEffectiveFrom) fSalaryEffectiveFrom.value = fJoinDate?.value || todayYMD();
+  currentEmpData = null;
+  currentEmpSalary = "";
+  currentEmpSalaryHistory = [];
   if (tNotes) tNotes.value = "";
   if (saveBtn) saveBtn.textContent = "Save";
   setFormEditable(true);
@@ -801,6 +811,73 @@ function parseSalaryNumber(value) {
   return isNaN(num) ? null : num;
 }
 
+function normalizeSalaryHistory(history, fallbackSalary = "", fallbackDate = "") {
+  const rows = Array.isArray(history) ? history : [];
+  const normalized = rows
+    .map((r) => ({
+      salary: parseSalaryNumber(r?.salary ?? r?.amount),
+      effectiveFrom: toYMD(r?.effectiveFrom || r?.date || r?.createdAt || fallbackDate),
+      note: r?.note || "",
+    }))
+    .filter((r) => r.salary != null && r.effectiveFrom)
+    .sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom));
+
+  const fallback = parseSalaryNumber(fallbackSalary);
+  if (fallback != null && !normalized.length) {
+    normalized.push({
+      salary: fallback,
+      effectiveFrom: fallbackDate || todayYMD(),
+      note: "Initial salary",
+    });
+  }
+  return normalized;
+}
+
+function salaryForDate(ymd, history = currentEmpSalaryHistory, fallbackSalary = currentEmpSalary) {
+  const target = ymd || todayYMD();
+  const rows = normalizeSalaryHistory(history, fallbackSalary, target);
+  let active = null;
+  rows.forEach((r) => {
+    if (r.effectiveFrom <= target) active = r.salary;
+  });
+  return active ?? parseSalaryNumber(fallbackSalary) ?? 0;
+}
+
+function dailyEarningsForDate({ status, workedMinutes, ymd }) {
+  return dailyEarnings({
+    status,
+    workedMinutes,
+    monthlySalary: salaryForDate(ymd),
+  });
+}
+
+function calculatePayableFromAttendanceRows(rows) {
+  let leaveSeen = 0;
+  return [...rows]
+    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")))
+    .reduce((sum, row) => {
+      const st = normalizeStatus(row.status);
+      if (row.offDay && st !== "present" && st !== "half-day") return sum;
+      if (st === "present" || st === "half-day") {
+        return sum + dailyEarningsForDate({
+          status: st,
+          workedMinutes: row.workedMinutes,
+          ymd: row.date,
+        });
+      }
+      if (st === "leave") {
+        leaveSeen += 1;
+        const daily = dailyEarningsForDate({
+          status: "present",
+          workedMinutes: null,
+          ymd: row.date,
+        });
+        return sum + (leaveSeen <= 3 ? daily : Math.round(daily * 0.5));
+      }
+      return sum;
+    }, 0);
+}
+
 function calcPayableSalary(monthlySalary, presentDays, leaveDays) {
   const base = parseSalaryNumber(monthlySalary);
   if (!base) return null;
@@ -847,6 +924,34 @@ function buildEmployeePayload() {
   }
   const exp = formatExperience(fJoinDate.value);
   fExp.value = exp;
+  const salary = (fSalary && fSalary.value || "").toString().trim();
+  const salaryAmount = parseSalaryNumber(salary);
+  const previousSalary = parseSalaryNumber(currentEmpData?.salary);
+  const salaryEffectiveFrom = fSalaryEffectiveFrom?.value || todayYMD();
+  const salaryHistory = normalizeSalaryHistory(
+    currentEmpData?.salaryHistory,
+    currentEmpData?.salary || salary,
+    currentEmpData?.joiningDate || fJoinDate.value || salaryEffectiveFrom
+  );
+
+  if (salaryAmount != null) {
+    const salaryChanged = previousSalary == null || salaryAmount !== previousSalary;
+    const sameEffectiveIndex = salaryHistory.findIndex((r) => r.effectiveFrom === salaryEffectiveFrom);
+    if (sameEffectiveIndex >= 0 && salaryChanged) {
+      salaryHistory[sameEffectiveIndex] = {
+        ...salaryHistory[sameEffectiveIndex],
+        salary: salaryAmount,
+        note: salaryHistory.length ? "Salary increment" : "Initial salary",
+      };
+    } else if (!salaryHistory.length || salaryChanged) {
+      salaryHistory.push({
+        salary: salaryAmount,
+        effectiveFrom: salaryEffectiveFrom,
+        note: salaryHistory.length ? "Salary increment" : "Initial salary",
+      });
+    }
+  }
+
   return {
     fullName: fName.value.trim(),
     email: fEmail.value.trim().toLowerCase(),
@@ -855,7 +960,9 @@ function buildEmployeePayload() {
     phone: fPhone.value.trim(),
     phoneE164: normalizePhoneE164(fPhone.value),
     upiId: (fUpiId?.value || "").trim(),
-    salary: (fSalary && fSalary.value || "").toString().trim(),
+    salary,
+    salaryEffectiveFrom,
+    salaryHistory: normalizeSalaryHistory(salaryHistory, salary, salaryEffectiveFrom),
     bankName: (fBankName?.value || "").trim(),
     bankAccount: (fAccountNumber?.value || "").trim(),
     bankIfsc: (fIfsc?.value || "").trim(),
@@ -1182,6 +1289,7 @@ async function openProfile(id) {
   if (!snap.exists()) return;
 
   const d = snap.data();
+  currentEmpData = d;
   fName.value = d.fullName || "";
   fEmail.value = d.email || "";
   currentEmpEmail = d.email || "";
@@ -1190,9 +1298,11 @@ async function openProfile(id) {
   fPhone.value = d.phone || "";
   if (fUpiId) fUpiId.value = d.upiId || "";
   if (fSalary) fSalary.value = d.salary || "";
+  if (fSalaryEffectiveFrom) fSalaryEffectiveFrom.value = d.salaryEffectiveFrom || todayYMD();
   if (fBankName) fBankName.value = d.bankName || "";
   if (fPayableSalary) fPayableSalary.value = "0";
   currentEmpSalary = d.salary || "";
+  currentEmpSalaryHistory = normalizeSalaryHistory(d.salaryHistory, d.salary, d.joiningDate || todayYMD());
   if (fAccountNumber) fAccountNumber.value = d.bankAccount || "";
   fEmployeeId.value = d.employeeId || "";
   fEmployeeId.readOnly = true;
@@ -1629,7 +1739,7 @@ async function saveEmployee() {
 }
 
 function setFormEditable(editable) {
-  const inputs = [fName, fEmail, fRole, fDepartment, fPhone, fUpiId, fSalary, fBankName, fAccountNumber, fIfsc, fCurrent, fJoinDate, fSkills, fShiftStart, fShiftEnd];
+  const inputs = [fName, fEmail, fRole, fDepartment, fPhone, fUpiId, fSalary, fSalaryEffectiveFrom, fBankName, fAccountNumber, fIfsc, fCurrent, fJoinDate, fSkills, fShiftStart, fShiftEnd];
   inputs.forEach((el) => {
     if (!el) return;
     el.readOnly = !editable;
@@ -1983,4 +2093,3 @@ if (btnSyncAuth) {
 console.log("Team Admin Loaded");
 
 })();
-
