@@ -19,7 +19,6 @@ import {
   where,
   addDoc
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
 
 (() => {
 const firebaseConfig = {
@@ -34,8 +33,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const functions = getFunctions(app, "us-central1");
-const callUpdateAuthUser = httpsCallable(functions, "updateAuthUser");
 const updateAuthUserHttpUrl = "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/updateAuthUserHttp";
 
 
@@ -980,7 +977,7 @@ function buildEmployeePayload() {
 
 async function ensureAuthUser({ oldEmail, newEmail, phone, displayName }) {
   try {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth.currentUser?.getIdToken(true);
     if (!token) throw new Error("Missing admin login token");
     const payload = {
       oldEmail: (oldEmail || "").trim(),
@@ -1000,18 +997,19 @@ async function ensureAuthUser({ oldEmail, newEmail, phone, displayName }) {
     if (!res.ok) throw new Error(data?.error || `Auth sync failed (${res.status})`);
     return { ok: true, data };
   } catch (err) {
-    try {
-      const res = await callUpdateAuthUser({
-        oldEmail: (oldEmail || "").trim(),
-        newEmail: (newEmail || "").trim(),
-        phone: (phone || "").trim(),
-        displayName: (displayName || "").trim()
-      });
-      return { ok: true, data: res?.data || {} };
-    } catch (fallbackErr) {
-      return { ok: false, error: fallbackErr || err };
-    }
+    return { ok: false, error: err };
   }
+}
+
+function shouldSyncAuthUser(previous, next) {
+  if (!previous) return true;
+  const oldEmail = (previous.email || "").trim().toLowerCase();
+  const newEmail = (next.email || "").trim().toLowerCase();
+  const oldName = (previous.fullName || "").trim();
+  const newName = (next.fullName || "").trim();
+  const oldPhone = normalizePhoneE164(previous.phone || previous.phoneE164 || "");
+  const newPhone = next.phoneE164 || normalizePhoneE164(next.phone || "");
+  return oldEmail !== newEmail || oldName !== newName || oldPhone !== newPhone;
 }
 
 async function sendResetIfCreated(authResult, email) {
@@ -1729,17 +1727,19 @@ async function saveEmployee() {
         type: "profile",
       });
     } else {
-      const authResult = await ensureAuthUser({
-        oldEmail,
-        newEmail: payload.email,
-        phone: authPhone,
-        displayName: payload.fullName
-      });
-      if (!authResult.ok) {
-        console.error("Auth user update failed:", authResult.error);
-        showToast("Auth update failed. Saved employee only.", true);
-      } else {
-        await sendResetIfCreated(authResult, payload.email);
+      if (shouldSyncAuthUser(currentEmpData, payload)) {
+        const authResult = await ensureAuthUser({
+          oldEmail,
+          newEmail: payload.email,
+          phone: authPhone,
+          displayName: payload.fullName
+        });
+        if (!authResult.ok) {
+          console.error("Auth user update failed:", authResult.error);
+          showToast("Auth update failed. Saved employee only.", true);
+        } else {
+          await sendResetIfCreated(authResult, payload.email);
+        }
       }
       await updateDoc(doc(db, "employees", currentID), payload);
       showToast("Team member updated");
