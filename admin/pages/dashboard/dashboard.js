@@ -51,7 +51,6 @@ function startAdminNotifications() {
   requestNotifPermission();
   const q = query(
     collection(db, "notifications"),
-    where("audience", "==", "admin"),
     orderBy("createdAt", "desc"),
     limit(25)
   );
@@ -63,6 +62,7 @@ function startAdminNotifications() {
     let maxSeen = lastNotifSeconds;
     snap.forEach((d) => {
       const data = d.data() || {};
+      if ((data.audience || "admin") !== "admin") return;
       const ts = data.createdAt?.seconds || 0;
       if (ts > lastNotifSeconds) {
         showBrowserNotif(data.title || "Notification", data.message || "");
@@ -70,6 +70,8 @@ function startAdminNotifications() {
       }
     });
     lastNotifSeconds = maxSeen;
+  }, (err) => {
+    console.error("Admin browser notifications failed:", err);
   });
 }
 
@@ -764,7 +766,6 @@ search.oninput = e => {
     r.style.display = r.innerText.toLowerCase().includes(v) ? "" : "none";
   });
 };
-
 
 
 

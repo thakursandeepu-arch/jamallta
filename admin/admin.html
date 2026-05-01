@@ -56,7 +56,26 @@
       <div class="welcome" id="welcomeName">Welcome</div>
     </div>
   </div>
+  <div class="header-actions">
+    <button class="notif-btn" id="adminNotifBtn" type="button" aria-label="Notifications">
+      <span>Notifications</span>
+      <strong id="adminNotifCount">0</strong>
+    </button>
+  </div>
 </header>
+
+<div class="notif-panel" id="adminNotifPanel">
+  <div class="notif-panel-head">
+    <div>
+      <h3>Notifications</h3>
+      <p id="adminNotifSub">No new updates</p>
+    </div>
+    <button id="adminNotifMarkRead" type="button">Mark read</button>
+  </div>
+  <div class="notif-list" id="adminNotifList">
+    <div class="notif-empty">No notifications yet.</div>
+  </div>
+</div>
 
 <!-- ========== CONTENT ========== -->
 <iframe
@@ -81,5 +100,3 @@
 <script src="assets/admin.js"></script>
 </body>
 </html>
-
-
