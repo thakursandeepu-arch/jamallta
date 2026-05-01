@@ -197,6 +197,105 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
   return info;
 }
 
+async function findCustomerForPayment(payment = {}) {
+  if (payment.customerEmail) {
+    return {
+      email: payment.customerEmail,
+      studioName: payment.studioName || payment.customerName || ""
+    };
+  }
+
+  if (payment.customerId) {
+    const snap = await db.doc(`customers/${payment.customerId}`).get();
+    if (snap.exists) {
+      const c = snap.data() || {};
+      if (c.email) {
+        return {
+          email: c.email,
+          studioName: c.studioName || c.customerName || payment.studioName || payment.customerName || ""
+        };
+      }
+    }
+  }
+
+  const names = [payment.studioName, payment.customerName]
+    .map(v => (v || "").toString().trim())
+    .filter(Boolean);
+  for (const name of names) {
+    const snap = await db.collection("customers")
+      .where("studioName", "==", name)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const c = snap.docs[0].data() || {};
+      if (c.email) {
+        return {
+          email: c.email,
+          studioName: c.studioName || c.customerName || name
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "" }) {
+  const email = normEmail(to);
+  if (!email) throw new Error("Customer email is required");
+
+  const { user } = getGmailConfig();
+  const paid = Number(amount || 0);
+  const methodText = method ? method.toString().trim() : "";
+  const subject = `Payment received - Jamallta Films`;
+  const text = [
+    `Hello ${studioName || "Client"},`,
+    "",
+    `We have received your payment of Rs ${paid.toFixed(2)}.`,
+    methodText ? `Payment method: ${methodText}` : "",
+    paymentId ? `Payment ID: ${paymentId}` : "",
+    note ? `Note: ${note}` : "",
+    "",
+    "Thank you for your payment.",
+    "",
+    "Regards,",
+    "Jamallta Films",
+    "Phone/WhatsApp: +91 8091181135"
+  ].filter(line => line !== "").join("\n");
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1f2937">
+      <p>Hello ${studioName || "Client"},</p>
+      <p>We have received your payment of <b>Rs ${paid.toFixed(2)}</b>.</p>
+      ${methodText ? `<p><b>Payment method:</b> ${methodText}</p>` : ""}
+      ${paymentId ? `<p><b>Payment ID:</b> ${paymentId}</p>` : ""}
+      ${note ? `<p><b>Note:</b> ${note}</p>` : ""}
+      <p>Thank you for your payment.</p>
+      <p>Regards,<br/>Jamallta Films<br/>Phone/WhatsApp: +91 8091181135</p>
+    </div>
+  `;
+
+  const info = await getMailTransporter().sendMail({
+    from: `"Jamallta Films" <${user}>`,
+    to: email,
+    subject,
+    text,
+    html
+  });
+
+  await db.collection("emailLogs").add({
+    to: email,
+    studioName,
+    amount: paid,
+    method: methodText,
+    reason: "payment_received",
+    messageId: info.messageId || "",
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return info;
+}
+
 async function isAdminCaller(context) {
   if (!context.auth) return false;
   if (ADMIN_EMAILS.includes(normEmail(context.auth.token?.email))) return true;
@@ -513,34 +612,70 @@ exports.autoSendProjectReadyEmail = functions.firestore
 exports.onPaymentCreate = functions.firestore
   .document("payments/{id}")
   .onCreate(async (snap) => {
-    const p = snap.data();
-    if (!p.customerId || !p.amount) return;
-    
-    let remaining = Number(p.amount);
-    const custRef = db.doc(`customers/${p.customerId}`);
-    const custSnap = await custRef.get();
-    
-    await custRef.update({
-      balance: (custSnap.data().balance || 0) + remaining
-    });
+    const p = snap.data() || {};
+    const amount = Number(p.amount || 0);
+    if (!amount) return null;
 
-    const jobsSnap = await db.collection("jobs")
-      .where("customerId", "==", p.customerId)
-      .where("status", "in", ["Delivered", "Ready"])
-      .orderBy("date")
-      .get();
+    if (p.customerId) {
+      let remaining = amount;
+      const custRef = db.doc(`customers/${p.customerId}`);
+      const custSnap = await custRef.get();
 
-    for (const doc of jobsSnap.docs) {
-      if (remaining <= 0) break;
-      const job = doc.data();
-      const jobRef = doc.ref;
-      const total = Number(job.totalAmount || 0);
-      const paid = Number(job.paidAmount || 0);
-      const due = total - paid;
-      if (due <= 0) continue;
-      const adjust = Math.min(due, remaining);
-      await jobRef.update({ paidAmount: paid + adjust });
-      remaining -= adjust;
+      if (custSnap.exists) {
+        await custRef.update({
+          balance: Number(custSnap.data()?.balance || 0) + remaining
+        });
+      }
+
+      const jobsSnap = await db.collection("jobs")
+        .where("customerId", "==", p.customerId)
+        .where("status", "in", ["Delivered", "Ready"])
+        .orderBy("date")
+        .get();
+
+      for (const doc of jobsSnap.docs) {
+        if (remaining <= 0) break;
+        const job = doc.data();
+        const jobRef = doc.ref;
+        const total = Number(job.totalAmount || 0);
+        const paid = Number(job.paidAmount || 0);
+        const due = total - paid;
+        if (due <= 0) continue;
+        const adjust = Math.min(due, remaining);
+        await jobRef.update({ paidAmount: paid + adjust });
+        remaining -= adjust;
+      }
+    }
+
+    try {
+      const customer = await findCustomerForPayment(p);
+      if (!customer?.email) {
+        await snap.ref.update({
+          paymentEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
+          paymentEmailSkipReason: "customer_email_missing"
+        });
+      } else {
+        await sendPaymentReceivedMail({
+          to: customer.email,
+          studioName: customer.studioName || p.studioName || p.customerName || "",
+          amount,
+          method: p.method || "",
+          note: p.note || "",
+          paymentId: p.paymentId || ""
+        });
+        await snap.ref.update({
+          paymentEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          paymentEmailTo: normEmail(customer.email),
+          paymentEmailSkippedAt: admin.firestore.FieldValue.delete(),
+          paymentEmailSkipReason: admin.firestore.FieldValue.delete()
+        });
+      }
+    } catch (e) {
+      console.error("Customer payment email failed:", e);
+      await snap.ref.update({
+        paymentEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
+        paymentEmailSkipReason: e?.message || "payment_email_failed"
+      });
     }
 
     try {
@@ -558,6 +693,8 @@ exports.onPaymentCreate = functions.firestore
     } catch (e) {
       console.error("Admin notification (payment) failed:", e);
     }
+
+    return null;
   });
 
 function generateTempPassword() {

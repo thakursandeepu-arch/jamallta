@@ -238,6 +238,49 @@ async function findCustomerForJob(job = {}) {
   return null;
 }
 
+async function findCustomerForPayment(payment = {}) {
+  if (payment.customerEmail) {
+    return {
+      email: payment.customerEmail,
+      studioName: payment.studioName || payment.customerName || ""
+    };
+  }
+
+  if (payment.customerId) {
+    const snap = await db.doc(`customers/${payment.customerId}`).get();
+    if (snap.exists) {
+      const c = snap.data() || {};
+      if (c.email) {
+        return {
+          email: c.email,
+          studioName: c.studioName || c.customerName || payment.studioName || payment.customerName || ""
+        };
+      }
+    }
+  }
+
+  const names = [payment.studioName, payment.customerName]
+    .map(v => (v || "").toString().trim())
+    .filter(Boolean);
+  for (const name of names) {
+    const snap = await db.collection("customers")
+      .where("studioName", "==", name)
+      .limit(1)
+      .get();
+    if (!snap.empty) {
+      const c = snap.docs[0].data() || {};
+      if (c.email) {
+        return {
+          email: c.email,
+          studioName: c.studioName || c.customerName || name
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 async function sendMail({ to, subject, text, html, log = {} }) {
   const email = normEmail(to);
   if (!email) throw new Error("Customer email is required");
@@ -307,6 +350,68 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
     text,
     html,
     log: { studioName, balance: pending, reason }
+  });
+}
+
+async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "" }) {
+  const paid = Number(amount || 0);
+  const methodText = method ? method.toString().trim() : "";
+  const safeStudio = escapeHtml(studioName || "Client");
+  const safeMethod = escapeHtml(methodText);
+  const safePaymentId = escapeHtml(paymentId || "");
+  const safeNote = escapeHtml(note || "");
+  const subject = `Payment Received | Jamallta Films`;
+  const text = [
+    `Hello ${studioName || "Client"},`,
+    "",
+    `We have received your payment of ${formatMoney(paid)}.`,
+    methodText ? `Payment method: ${methodText}` : "",
+    paymentId ? `Payment ID: ${paymentId}` : "",
+    note ? `Note: ${note}` : "",
+    "",
+    "Thank you for your payment.",
+    "",
+    "Regards,",
+    "Jamallta Films",
+    "Phone/WhatsApp: +91 8091181135"
+  ].filter(line => line !== "").join("\n");
+
+  const html = `
+    <div style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,sans-serif;color:#1f2937">
+      <div style="max-width:640px;margin:0 auto;padding:28px 16px">
+        <div style="background:#17120d;color:#fffaf2;padding:24px;border-radius:14px 14px 0 0">
+          <div style="font-size:24px;font-weight:700;letter-spacing:.3px">Jamallta Films</div>
+          <div style="margin-top:6px;color:#e7dac7;font-size:14px">Payment confirmation</div>
+        </div>
+        <div style="background:#ffffff;padding:26px;border:1px solid #eadfce;border-top:0;border-radius:0 0 14px 14px">
+          <p style="margin:0 0 14px;font-size:16px">Hello ${safeStudio},</p>
+          <p style="margin:0 0 18px;line-height:1.65">We have received your payment at <b>Jamallta Films</b>.</p>
+          <div style="background:#f2fbf5;border:1px solid #cfead8;border-radius:12px;padding:16px;margin:18px 0">
+            <div style="font-size:13px;color:#35754c;text-transform:uppercase;font-weight:700">Payment Received</div>
+            <div style="font-size:28px;font-weight:700;color:#17613a;margin-top:4px">${formatMoney(paid)}</div>
+          </div>
+          ${safeMethod ? `<p style="margin:0 0 10px"><b>Payment method:</b> ${safeMethod}</p>` : ""}
+          ${safePaymentId ? `<p style="margin:0 0 10px"><b>Payment ID:</b> ${safePaymentId}</p>` : ""}
+          ${safeNote ? `<p style="margin:0 0 10px"><b>Note:</b> ${safeNote}</p>` : ""}
+          <p style="margin:18px 0;line-height:1.65">Thank you for your payment.</p>
+          <a href="https://wa.me/918091181135" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Contact on WhatsApp</a>
+          <p style="margin:24px 0 0;line-height:1.6;color:#51473d">Regards,<br><b>Jamallta Films</b><br>Phone/WhatsApp: +91 8091181135</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return sendMail({
+    to,
+    subject,
+    text,
+    html,
+    log: {
+      studioName,
+      amount: paid,
+      method: methodText,
+      reason: "payment_received"
+    }
   });
 }
 
@@ -632,6 +737,49 @@ exports.autoSendProjectReadyEmail = functions.firestore
       readyEmailSkippedAt: admin.firestore.FieldValue.delete(),
       readyEmailSkipReason: admin.firestore.FieldValue.delete()
     });
+
+    return null;
+  });
+
+exports.autoSendPaymentReceivedEmail = functions.firestore
+  .document("payments/{paymentId}")
+  .onCreate(async (snap) => {
+    const payment = snap.data() || {};
+    const amount = Number(payment.amount || 0);
+    if (!amount) return null;
+
+    try {
+      const customer = await findCustomerForPayment(payment);
+      if (!customer?.email) {
+        await snap.ref.update({
+          paymentEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
+          paymentEmailSkipReason: "customer_email_missing"
+        });
+        return null;
+      }
+
+      await sendPaymentReceivedMail({
+        to: customer.email,
+        studioName: customer.studioName || payment.studioName || payment.customerName || "",
+        amount,
+        method: payment.method || "",
+        note: payment.note || "",
+        paymentId: payment.paymentId || ""
+      });
+
+      await snap.ref.update({
+        paymentEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        paymentEmailTo: normEmail(customer.email),
+        paymentEmailSkippedAt: admin.firestore.FieldValue.delete(),
+        paymentEmailSkipReason: admin.firestore.FieldValue.delete()
+      });
+    } catch (error) {
+      console.error("autoSendPaymentReceivedEmail error:", error);
+      await snap.ref.update({
+        paymentEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
+        paymentEmailSkipReason: error?.message || "payment_email_failed"
+      });
+    }
 
     return null;
   });
