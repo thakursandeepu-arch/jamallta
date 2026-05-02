@@ -122,12 +122,19 @@ function getJobTotals(job = {}) {
 
 async function getStudioTotalsForJob(job = {}) {
   const jobs = new Map();
+  const payments = new Map();
   let customerBalance = null;
   let customerAdvance = 0;
   const addSnapshotJobs = (snap) => {
     snap.forEach(docSnap => {
       const data = docSnap.data() || {};
       if (!data.deleteData) jobs.set(docSnap.id, data);
+    });
+  };
+  const addSnapshotPayments = (snap) => {
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      if (!data.deleteData) payments.set(docSnap.id, data);
     });
   };
 
@@ -143,6 +150,11 @@ async function getStudioTotalsForJob(job = {}) {
       .where("customerId", "==", job.customerId)
       .get();
     addSnapshotJobs(byCustomer);
+
+    const paymentsByCustomer = await db.collection("payments")
+      .where("customerId", "==", job.customerId)
+      .get();
+    addSnapshotPayments(paymentsByCustomer);
   }
 
   const names = [job.studioName, job.customerName]
@@ -156,6 +168,13 @@ async function getStudioTotalsForJob(job = {}) {
         .get();
       addSnapshotJobs(byStudio);
     }
+  }
+
+  for (const name of names) {
+    const paymentsByStudio = await db.collection("payments")
+      .where("studioName", "==", name)
+      .get();
+    addSnapshotPayments(paymentsByStudio);
   }
 
   if (customerBalance == null) {
@@ -183,12 +202,16 @@ async function getStudioTotalsForJob(job = {}) {
     return sum;
   }, { total: 0, paid: 0, pending: 0, pendingJobsCount: 0 });
 
-  const currentBalance = customerBalance != null
-    ? Math.max(customerBalance, 0)
-    : Math.max(totals.pending, 0);
+  const paymentsTotal = Array.from(payments.values()).reduce((sum, payment) => {
+    return sum + Number(payment.amount || 0);
+  }, 0);
+  const ledgerBalance = Math.max(totals.total - paymentsTotal, 0);
+  const currentBalance = payments.size || jobs.size
+    ? ledgerBalance
+    : Math.max(customerBalance || totals.pending || 0, 0);
   return {
     total: currentBalance,
-    paid: totals.paid,
+    paid: payments.size ? Math.min(paymentsTotal, totals.total) : totals.paid,
     pending: currentBalance,
     workTotal: totals.total,
     jobsPending: totals.pending,
