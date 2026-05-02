@@ -485,8 +485,13 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
   const subject = `Project Ready for Delivery | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
   const accountName = studioName || project;
+  const totalBillAmount = Math.max(Number(workTotal || total || 0), 0);
+  const paymentReceivedAmount = Math.max(Number(paid || 0) + Number(advance || 0), 0);
+  const finalPayableAmount = totalBillAmount > 0
+    ? Math.max(totalBillAmount - paymentReceivedAmount, 0)
+    : Math.max(Number(pending || 0), 0);
   const currentJobAmount = Math.max(Number(jobPending || jobTotal || 0), 0);
-  const currentBalanceAmount = Math.max(Number(pending || total || 0), 0);
+  const currentBalanceAmount = finalPayableAmount;
   const jobUpiUrl = buildUpiUrl(currentJobAmount, `Job payment ${jobNo || project}`);
   const fullUpiUrl = buildUpiUrl(currentBalanceAmount, `Full balance payment ${accountName}`);
   const jobPayUrl = buildPaymentPageUrl(currentJobAmount, `Job payment ${jobNo || project}`, "job");
@@ -508,10 +513,10 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
       return `- ${name}: ${qty || "-"} x ${formatMoney(price)} = ${formatMoney(rowTotal)}`;
     }),
     "",
-    `Total Work Amount: ${formatMoney(workTotal || total)}`,
-    `Paid Amount: ${formatMoney(paid)}`,
-    `Current Balance: ${formatMoney(pending)}`,
-    pending > 0 ? `UPI ID: ${upiId}` : "",
+    `Total Bill: ${formatMoney(totalBillAmount)}`,
+    `Payment Received / Advance (-): ${formatMoney(paymentReceivedAmount)}`,
+    `Final Payable: ${formatMoney(finalPayableAmount)}`,
+    finalPayableAmount > 0 ? `UPI ID: ${upiId}` : "",
     currentJobAmount > 0 ? `Pay this job: ${jobUpiUrl}` : "",
     total > 0 ? `Full payment: ${fullUpiUrl}` : "",
     "",
@@ -586,26 +591,27 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
           <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0 10px;margin:14px 0 18px">
             <tr>
               <td style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">Total Work</div>
-                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(workTotal || total)}</div>
+                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">Total Bill</div>
+                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(totalBillAmount)}</div>
               </td>
               <td style="width:10px"></td>
               <td style="background:#f2fbf5;border:1px solid #cfead8;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#35754c;text-transform:uppercase;font-weight:700">Paid</div>
-                <div style="font-size:18px;font-weight:700;color:#17613a;margin-top:5px">${formatMoney(paid)}</div>
+                <div style="font-size:11px;color:#35754c;text-transform:uppercase;font-weight:700">Payment Received (-)</div>
+                <div style="font-size:18px;font-weight:700;color:#17613a;margin-top:5px">${formatMoney(paymentReceivedAmount)}</div>
               </td>
               <td style="width:10px"></td>
               <td style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">Current Balance</div>
-                <div style="font-size:18px;font-weight:700;color:#8a4b08;margin-top:5px">${formatMoney(pending)}</div>
+                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">Final Payable</div>
+                <div style="font-size:18px;font-weight:700;color:#8a4b08;margin-top:5px">${formatMoney(finalPayableAmount)}</div>
               </td>
             </tr>
           </table>
 
-          ${(jobsPending > 0 || advance > 0) ? `
+          ${(jobsPending > 0 || advance > 0 || paymentReceivedAmount > 0) ? `
             <div style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:13px 14px;margin:-6px 0 18px;color:#51473d;line-height:1.55;font-size:13px">
-              ${jobsPending > 0 ? `<b>Jobs pending:</b> ${formatMoney(jobsPending)} ` : ""}
-              ${advance > 0 ? `<br><b>Advance:</b> ${formatMoney(advance)}` : ""}
+              <b>Bill calculation:</b> ${formatMoney(totalBillAmount)} - ${formatMoney(paymentReceivedAmount)} = <b>${formatMoney(finalPayableAmount)}</b>
+              ${advance > 0 ? `<br><b>Advance adjusted:</b> ${formatMoney(advance)}` : ""}
+              ${jobsPending > 0 ? `<br><b>Jobs pending before adjustment:</b> ${formatMoney(jobsPending)}` : ""}
             </div>
           ` : ""}
 
