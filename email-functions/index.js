@@ -417,6 +417,9 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
   const safeMethod = escapeHtml(methodText);
   const safePaymentId = escapeHtml(paymentId || "");
   const safeNote = escapeHtml(note || "");
+  const balancePayUrl = balance > 0
+    ? buildPaymentPageUrl(balance, `Remaining balance payment ${studioName || "Client"}`, "pending")
+    : "";
   const subject = `Payment Received | Jamallta Films`;
   const text = [
     `Hello ${studioName || "Client"},`,
@@ -426,6 +429,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     paymentId ? `Payment ID: ${paymentId}` : "",
     note ? `Note: ${note}` : "",
     balance != null ? `Current balance: ${formatMoney(balance)}` : "",
+    balancePayUrl ? `Pay remaining balance: ${balancePayUrl}` : "",
     "",
     "Thank you for your payment.",
     "",
@@ -452,6 +456,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
           <div style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:16px;margin:18px 0">
             <div style="font-size:13px;color:#7c6b57;text-transform:uppercase;font-weight:700">Current Balance</div>
             <div style="font-size:24px;font-weight:700;color:#17120d;margin-top:4px">${formatMoney(balance)}</div>
+            ${balancePayUrl ? `<a href="${balancePayUrl}" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;margin-top:14px">Pay Balance</a>` : ""}
           </div>
           ` : ""}
           ${safeMethod ? `<p style="margin:0 0 10px"><b>Payment method:</b> ${safeMethod}</p>` : ""}
