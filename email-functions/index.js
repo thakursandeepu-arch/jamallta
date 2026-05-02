@@ -46,7 +46,7 @@ async function isAdminCaller(context) {
 
 function isJobReadyForEmail(job = {}) {
   const status = normEmail(job.status);
-  return status === "ready" || status === "delivered" || status === "completed" || !!job.dataReadyDate || !!job.dataDeliverDate;
+  return status === "delivered" || status === "completed" || !!job.dataDeliverDate;
 }
 
 function formatJobDate(value) {
@@ -512,7 +512,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
 
 async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, pendingJobsCount = 0, advance = 0, jobTotal = 0, jobPending = 0 }) {
   const project = projectName || jobNo || "your project";
-  const subject = `Project Ready for Delivery | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
+  const subject = `Project Delivered | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
   const accountName = studioName || project;
   const totalBillAmount = Math.max(Number(workTotal || total || 0), 0);
@@ -532,8 +532,8 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
   const text = [
     `Hello ${studioName || "Client"},`,
     "",
-    `Good news. Your project "${project}" is ready for delivery from Jamallta Films.`,
-    readyDate ? `Ready date: ${readyDate}` : "",
+    `Good news. Your project "${project}" has been delivered by Jamallta Films.`,
+    readyDate ? `Delivery date: ${readyDate}` : "",
     jobNo ? `Job No: ${jobNo}` : "",
     "",
     safeItems.length ? "Project items:" : "",
@@ -548,7 +548,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
     `Total Bill: ${formatMoney(totalBillAmount)}`,
     `Payment Received / Advance (-): ${formatMoney(paymentReceivedAmount)}`,
     `Final Payable: ${formatMoney(finalPayableAmount)}`,
-    finalPayableAmount > 0 ? `UPI ID: ${upiId}` : "",
+    finalPayableAmount > 0 ? `UPI ID: ${upiId}` : "Your payment is complete. Current balance is Rs 0.00.",
     showJobPayOption ? `Pay this job: ${jobUpiUrl}` : "",
     total > 0 ? `Full payment: ${fullUpiUrl}` : "",
     "",
@@ -561,16 +561,16 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
 
   const html = `
     <div style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,sans-serif;color:#1f2937">
-      <div style="display:none;max-height:0;overflow:hidden;color:#f4f1eb">Your project is ready. Review items, pending amount, and pay securely by UPI.</div>
+      <div style="display:none;max-height:0;overflow:hidden;color:#f4f1eb">Your project has been delivered. Review items, balance, and payment status.</div>
       <div style="max-width:680px;margin:0 auto;padding:18px 10px">
         <div style="background:#17120d;color:#fffaf2;padding:24px 22px;border-radius:14px 14px 0 0">
           <div style="font-size:25px;font-weight:700;letter-spacing:.2px;line-height:1.2">Jamallta Films</div>
           <div style="margin-top:7px;color:#e7dac7;font-size:13px;line-height:1.45">Wedding Films, Photography and Editing Studio</div>
         </div>
         <div style="background:#ffffff;border:1px solid #eadfce;border-top:0;border-radius:0 0 14px 14px;padding:22px">
-          <div style="display:inline-block;background:#e8f7ee;color:#17613a;border:1px solid #bfe8cf;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;margin-bottom:18px">Project Ready</div>
-          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#17120d">Your project is ready for delivery</h1>
-          <p style="margin:0 0 18px;font-size:16px;line-height:1.65">Hello ${studioName || "Client"},<br>Good news. Your project has been completed by <b>Jamallta Films</b> and is now ready for delivery.</p>
+          <div style="display:inline-block;background:#e8f7ee;color:#17613a;border:1px solid #bfe8cf;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;margin-bottom:18px">Project Delivered</div>
+          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#17120d">Your project has been delivered</h1>
+          <p style="margin:0 0 18px;font-size:16px;line-height:1.65">Hello ${studioName || "Client"},<br>Good news. Your project has been delivered by <b>Jamallta Films</b>.</p>
 
           <div style="border:1px solid #eadfce;border-radius:12px;overflow:hidden;margin:22px 0;background:#fffdf8">
             <div style="padding:14px 16px;border-bottom:1px solid #eadfce">
@@ -585,7 +585,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
             ` : ""}
             ${readyDate ? `
               <div style="padding:14px 16px">
-                <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Ready Date</div>
+                <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Delivery Date</div>
                 <div style="font-size:16px;color:#1f2937;margin-top:4px">${readyDate}</div>
               </div>
             ` : ""}
@@ -644,6 +644,13 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
               <b>Bill calculation:</b> ${formatMoney(totalBillAmount)} - ${formatMoney(paymentReceivedAmount)} = <b>${formatMoney(finalPayableAmount)}</b>
               ${advance > 0 ? `<br><b>Advance adjusted:</b> ${formatMoney(advance)}` : ""}
               ${jobsPending > 0 ? `<br><b>Jobs pending before adjustment:</b> ${formatMoney(jobsPending)}` : ""}
+            </div>
+          ` : ""}
+
+          ${finalPayableAmount <= 0 ? `
+            <div style="background:#e8f7ee;border:1px solid #bfe8cf;border-radius:12px;padding:16px;margin:22px 0;color:#17613a;font-size:15px;line-height:1.55">
+              <b>Payment Complete</b><br>
+              Thank you. Your current balance is ${formatMoney(0)}, so no payment is pending.
             </div>
           ` : ""}
 
