@@ -281,6 +281,62 @@ async function findCustomerForPayment(payment = {}) {
   return null;
 }
 
+async function getCurrentBalanceForPayment(payment = {}) {
+  const jobs = new Map();
+  const payments = new Map();
+  let customerBalance = null;
+
+  const addJobs = (snap) => {
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      if (!data.deleteData) jobs.set(docSnap.id, data);
+    });
+  };
+
+  const addPayments = (snap) => {
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      if (!data.deleteData) payments.set(docSnap.id, data);
+    });
+  };
+
+  if (payment.customerId) {
+    const customerSnap = await db.doc(`customers/${payment.customerId}`).get();
+    if (customerSnap.exists) customerBalance = Number(customerSnap.data()?.balance || 0);
+
+    addJobs(await db.collection("jobs").where("customerId", "==", payment.customerId).get());
+    addPayments(await db.collection("payments").where("customerId", "==", payment.customerId).get());
+  }
+
+  const names = [payment.studioName, payment.customerName]
+    .map(v => (v || "").toString().trim())
+    .filter(Boolean);
+
+  for (const name of names) {
+    addJobs(await db.collection("jobs").where("studioName", "==", name).get());
+    addPayments(await db.collection("payments").where("studioName", "==", name).get());
+
+    if (customerBalance == null) {
+      const customerSnap = await db.collection("customers")
+        .where("studioName", "==", name)
+        .limit(1)
+        .get();
+      if (!customerSnap.empty) customerBalance = Number(customerSnap.docs[0].data()?.balance || 0);
+    }
+  }
+
+  const totalJobsAmount = Array.from(jobs.values()).reduce((sum, job) => {
+    return sum + getJobTotals(job).total;
+  }, 0);
+  const totalPayments = Array.from(payments.values()).reduce((sum, item) => {
+    return sum + Number(item.amount || 0);
+  }, 0);
+
+  if (jobs.size || payments.size) return Math.max(totalJobsAmount - totalPayments, 0);
+  if (customerBalance != null) return Math.max(customerBalance - Number(payment.amount || 0), 0);
+  return null;
+}
+
 async function sendMail({ to, subject, text, html, log = {} }) {
   const email = normEmail(to);
   if (!email) throw new Error("Customer email is required");
@@ -353,8 +409,9 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
   });
 }
 
-async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "" }) {
+async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "", currentBalance = null }) {
   const paid = Number(amount || 0);
+  const balance = currentBalance == null ? null : Math.max(Number(currentBalance || 0), 0);
   const methodText = method ? method.toString().trim() : "";
   const safeStudio = escapeHtml(studioName || "Client");
   const safeMethod = escapeHtml(methodText);
@@ -368,6 +425,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     methodText ? `Payment method: ${methodText}` : "",
     paymentId ? `Payment ID: ${paymentId}` : "",
     note ? `Note: ${note}` : "",
+    balance != null ? `Current balance: ${formatMoney(balance)}` : "",
     "",
     "Thank you for your payment.",
     "",
@@ -390,6 +448,12 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
             <div style="font-size:13px;color:#35754c;text-transform:uppercase;font-weight:700">Payment Received</div>
             <div style="font-size:28px;font-weight:700;color:#17613a;margin-top:4px">${formatMoney(paid)}</div>
           </div>
+          ${balance != null ? `
+          <div style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:16px;margin:18px 0">
+            <div style="font-size:13px;color:#7c6b57;text-transform:uppercase;font-weight:700">Current Balance</div>
+            <div style="font-size:24px;font-weight:700;color:#17120d;margin-top:4px">${formatMoney(balance)}</div>
+          </div>
+          ` : ""}
           ${safeMethod ? `<p style="margin:0 0 10px"><b>Payment method:</b> ${safeMethod}</p>` : ""}
           ${safePaymentId ? `<p style="margin:0 0 10px"><b>Payment ID:</b> ${safePaymentId}</p>` : ""}
           ${safeNote ? `<p style="margin:0 0 10px"><b>Note:</b> ${safeNote}</p>` : ""}
@@ -409,6 +473,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     log: {
       studioName,
       amount: paid,
+      currentBalance: balance,
       method: methodText,
       reason: "payment_received"
     }
@@ -764,7 +829,8 @@ exports.autoSendPaymentReceivedEmail = functions.firestore
         amount,
         method: payment.method || "",
         note: payment.note || "",
-        paymentId: payment.paymentId || ""
+        paymentId: payment.paymentId || "",
+        currentBalance: await getCurrentBalanceForPayment(payment)
       });
 
       await snap.ref.update({

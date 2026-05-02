@@ -240,12 +240,79 @@ async function findCustomerForPayment(payment = {}) {
   return null;
 }
 
-async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "" }) {
+function getItemRowTotal(item = {}) {
+  if (item.rowTotal != null) return Number(item.rowTotal || 0);
+  if (item.totalPrice != null) return Number(item.totalPrice || 0);
+  const price = Number(item.price || item.itemPrice || item.unitPrice || 0);
+  const qty = Number(item.qtyValue || item.quantity || 1);
+  return price * qty;
+}
+
+function getJobTotal(job = {}) {
+  const items = Array.isArray(job.itemsAdded) ? job.itemsAdded : [];
+  const itemsTotal = items.reduce((sum, item) => sum + getItemRowTotal(item), 0);
+  return Number(job.totalAmount || 0) || itemsTotal;
+}
+
+async function getCurrentBalanceForPayment(payment = {}) {
+  const jobs = new Map();
+  const payments = new Map();
+  let customerBalance = null;
+
+  const addJobs = (snap) => {
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      if (!data.deleteData) jobs.set(docSnap.id, data);
+    });
+  };
+
+  const addPayments = (snap) => {
+    snap.forEach(docSnap => {
+      const data = docSnap.data() || {};
+      if (!data.deleteData) payments.set(docSnap.id, data);
+    });
+  };
+
+  if (payment.customerId) {
+    const customerSnap = await db.doc(`customers/${payment.customerId}`).get();
+    if (customerSnap.exists) customerBalance = Number(customerSnap.data()?.balance || 0);
+
+    addJobs(await db.collection("jobs").where("customerId", "==", payment.customerId).get());
+    addPayments(await db.collection("payments").where("customerId", "==", payment.customerId).get());
+  }
+
+  const names = [payment.studioName, payment.customerName]
+    .map(v => (v || "").toString().trim())
+    .filter(Boolean);
+
+  for (const name of names) {
+    addJobs(await db.collection("jobs").where("studioName", "==", name).get());
+    addPayments(await db.collection("payments").where("studioName", "==", name).get());
+
+    if (customerBalance == null) {
+      const customerSnap = await db.collection("customers")
+        .where("studioName", "==", name)
+        .limit(1)
+        .get();
+      if (!customerSnap.empty) customerBalance = Number(customerSnap.docs[0].data()?.balance || 0);
+    }
+  }
+
+  const totalJobsAmount = Array.from(jobs.values()).reduce((sum, job) => sum + getJobTotal(job), 0);
+  const totalPayments = Array.from(payments.values()).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  if (jobs.size || payments.size) return Math.max(totalJobsAmount - totalPayments, 0);
+  if (customerBalance != null) return Math.max(customerBalance - Number(payment.amount || 0), 0);
+  return null;
+}
+
+async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method = "", note = "", paymentId = "", currentBalance = null }) {
   const email = normEmail(to);
   if (!email) throw new Error("Customer email is required");
 
   const { user } = getGmailConfig();
   const paid = Number(amount || 0);
+  const balance = currentBalance == null ? null : Math.max(Number(currentBalance || 0), 0);
   const methodText = method ? method.toString().trim() : "";
   const subject = `Payment received - Jamallta Films`;
   const text = [
@@ -255,6 +322,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     methodText ? `Payment method: ${methodText}` : "",
     paymentId ? `Payment ID: ${paymentId}` : "",
     note ? `Note: ${note}` : "",
+    balance != null ? `Current balance: Rs ${balance.toFixed(2)}` : "",
     "",
     "Thank you for your payment.",
     "",
@@ -270,6 +338,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
       ${methodText ? `<p><b>Payment method:</b> ${methodText}</p>` : ""}
       ${paymentId ? `<p><b>Payment ID:</b> ${paymentId}</p>` : ""}
       ${note ? `<p><b>Note:</b> ${note}</p>` : ""}
+      ${balance != null ? `<p><b>Current balance:</b> Rs ${balance.toFixed(2)}</p>` : ""}
       <p>Thank you for your payment.</p>
       <p>Regards,<br/>Jamallta Films<br/>Phone/WhatsApp: +91 8091181135</p>
     </div>
@@ -287,6 +356,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     to: email,
     studioName,
     amount: paid,
+    currentBalance: balance,
     method: methodText,
     reason: "payment_received",
     messageId: info.messageId || "",
@@ -661,7 +731,8 @@ exports.onPaymentCreate = functions.firestore
           amount,
           method: p.method || "",
           note: p.note || "",
-          paymentId: p.paymentId || ""
+          paymentId: p.paymentId || "",
+          currentBalance: await getCurrentBalanceForPayment(p)
         });
         await snap.ref.update({
           paymentEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
