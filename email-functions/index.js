@@ -179,8 +179,9 @@ async function getStudioTotalsForJob(job = {}) {
     sum.total += totals.total;
     sum.paid += totals.paid;
     sum.pending += totals.pending;
+    if (totals.pending > 0) sum.pendingJobsCount += 1;
     return sum;
-  }, { total: 0, paid: 0, pending: 0 });
+  }, { total: 0, paid: 0, pending: 0, pendingJobsCount: 0 });
 
   const currentBalance = customerBalance != null
     ? Math.max(customerBalance, totals.pending, 0)
@@ -191,6 +192,7 @@ async function getStudioTotalsForJob(job = {}) {
     pending: currentBalance,
     workTotal: totals.total,
     jobsPending: totals.pending,
+    pendingJobsCount: totals.pendingJobsCount,
     advance: customerAdvance
   };
 }
@@ -485,7 +487,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
   });
 }
 
-async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, advance = 0, jobTotal = 0, jobPending = 0 }) {
+async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, pendingJobsCount = 0, advance = 0, jobTotal = 0, jobPending = 0 }) {
   const project = projectName || jobNo || "your project";
   const subject = `Project Ready for Delivery | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
@@ -501,6 +503,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
     Math.max(Number(jobPending || jobTotal || 0), 0),
     finalPayableAmount
   );
+  const showJobPayOption = Number(pendingJobsCount || 0) > 1 && currentJobAmount > 0 && currentJobAmount < currentBalanceAmount;
   const jobUpiUrl = buildUpiUrl(currentJobAmount, `Job payment ${jobNo || project}`);
   const fullUpiUrl = buildUpiUrl(currentBalanceAmount, `Full balance payment ${accountName}`);
   const jobPayUrl = buildPaymentPageUrl(currentJobAmount, `Job payment ${jobNo || project}`, "job");
@@ -526,7 +529,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
     `Payment Received / Advance (-): ${formatMoney(paymentReceivedAmount)}`,
     `Final Payable: ${formatMoney(finalPayableAmount)}`,
     finalPayableAmount > 0 ? `UPI ID: ${upiId}` : "",
-    currentJobAmount > 0 ? `Pay this job: ${jobUpiUrl}` : "",
+    showJobPayOption ? `Pay this job: ${jobUpiUrl}` : "",
     total > 0 ? `Full payment: ${fullUpiUrl}` : "",
     "",
     "Please reply to this email or contact us on WhatsApp to confirm delivery and any pending details.",
@@ -631,7 +634,7 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
               <div style="background:#fffaf2;color:#17120d;border-radius:8px;padding:12px;margin:14px 0 0;font-weight:700">UPI ID: ${upiId}</div>
               <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:16px">
                 <tr>
-                  ${currentJobAmount > 0 ? `
+                  ${showJobPayOption ? `
                     <td style="vertical-align:top;padding:0 0 12px;width:100%;display:block">
                       <div style="background:#241b14;border:1px solid #3c3026;border-radius:12px;padding:14px">
                         <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Pay This Job</div>
