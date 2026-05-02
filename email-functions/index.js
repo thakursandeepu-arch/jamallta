@@ -184,7 +184,7 @@ async function getStudioTotalsForJob(job = {}) {
   }, { total: 0, paid: 0, pending: 0, pendingJobsCount: 0 });
 
   const currentBalance = customerBalance != null
-    ? Math.max(customerBalance, totals.pending, 0)
+    ? Math.max(customerBalance, 0)
     : Math.max(totals.pending, 0);
   return {
     total: currentBalance,
@@ -493,12 +493,9 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
   const upiId = "thakursandeepm@oksbi";
   const accountName = studioName || project;
   const totalBillAmount = Math.max(Number(workTotal || total || 0), 0);
-  const paymentReceivedAmount = Math.max(Number(paid || 0) + Number(advance || 0), 0);
-  const calculatedFinalPayable = totalBillAmount > 0
-    ? Math.max(totalBillAmount - paymentReceivedAmount, 0)
-    : Math.max(Number(pending || 0), 0);
-  const currentBalanceAmount = Math.max(Number(pending || total || calculatedFinalPayable || 0), 0);
-  const finalPayableAmount = currentBalanceAmount || calculatedFinalPayable;
+  const currentBalanceAmount = Math.max(Number(pending || 0), 0);
+  const finalPayableAmount = currentBalanceAmount;
+  const paymentReceivedAmount = Math.max(totalBillAmount - finalPayableAmount, Number(paid || 0) + Number(advance || 0), 0);
   const currentJobAmount = Math.min(
     Math.max(Number(jobPending || jobTotal || 0), 0),
     finalPayableAmount
