@@ -492,11 +492,15 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
   const accountName = studioName || project;
   const totalBillAmount = Math.max(Number(workTotal || total || 0), 0);
   const paymentReceivedAmount = Math.max(Number(paid || 0) + Number(advance || 0), 0);
-  const finalPayableAmount = totalBillAmount > 0
+  const calculatedFinalPayable = totalBillAmount > 0
     ? Math.max(totalBillAmount - paymentReceivedAmount, 0)
     : Math.max(Number(pending || 0), 0);
-  const currentJobAmount = Math.max(Number(jobPending || jobTotal || 0), 0);
-  const currentBalanceAmount = finalPayableAmount;
+  const currentBalanceAmount = Math.max(Number(pending || total || calculatedFinalPayable || 0), 0);
+  const finalPayableAmount = currentBalanceAmount || calculatedFinalPayable;
+  const currentJobAmount = Math.min(
+    Math.max(Number(jobPending || jobTotal || 0), 0),
+    finalPayableAmount
+  );
   const jobUpiUrl = buildUpiUrl(currentJobAmount, `Job payment ${jobNo || project}`);
   const fullUpiUrl = buildUpiUrl(currentBalanceAmount, `Full balance payment ${accountName}`);
   const jobPayUrl = buildPaymentPageUrl(currentJobAmount, `Job payment ${jobNo || project}`, "job");
