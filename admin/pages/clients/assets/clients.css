@@ -297,6 +297,11 @@ body {
   opacity: 0.55;
 }
 
+.clients-table td:has(.client-email-btn),
+.clients-table .client-email-btn {
+  display: none !important;
+}
+
 /* ===================================================== */
 /* ================= TOP ACTION BAR ==================== */
 /* ===================================================== */
