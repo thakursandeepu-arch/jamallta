@@ -610,7 +610,6 @@ function main() {
       if (c.deleteData) return;
       const matchStr = ((c.studioName||"") + "|" + (c.phone||"") + "|" + (c.city||"") + "|" + (c.email||"")).toLowerCase();
       if(q && !matchStr.includes(q)) return;
-      const hasEmail = !!(c.email || "").toString().trim();
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${escapeHtml(c.studioName)||"-"}</td>
@@ -618,15 +617,7 @@ function main() {
         <td>${escapeHtml(c.city)||"-"}</td>
         <td>${escapeHtml(c.address)||"-"}</td>
         <td class="${(c.balance||0)>0?'text-warning':((c.balance||0)<0?'text-danger':'text-success')}">\u20B9${(Number(c.balance)||0).toFixed(2)}</td>
-        <td><button class="btn-square btn-email client-email-btn" type="button" ${hasEmail ? "" : "disabled"}>Email</button></td>
       `;
-      const emailBtn = tr.querySelector(".client-email-btn");
-      if (emailBtn) {
-        emailBtn.addEventListener("click", (e)=> {
-          e.stopPropagation();
-          sendCustomerEmailNow(c, emailBtn);
-        });
-      }
       tr.addEventListener("click", ()=> {
         if (c.studioName) openProfile(c.studioName);
       });
