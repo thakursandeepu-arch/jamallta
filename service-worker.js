@@ -1,4 +1,4 @@
-const CACHE_NAME = "jamallta-pwa-v8";
+const CACHE_NAME = "jamallta-pwa-v9";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -20,6 +20,7 @@ const APP_SHELL = [
   "/favicon.ico",
   "/manifest.webmanifest",
   "/assets/pwa.js",
+  "/assets/app-session.js",
   "/assets/icons/icon-192.png",
   "/assets/icons/icon-512.png"
 ];

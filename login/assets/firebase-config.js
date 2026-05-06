@@ -1,5 +1,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import {
+  browserLocalPersistence,
+  getAuth,
+  setPersistence
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { getStorage } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 import { getFunctions } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
@@ -15,11 +19,11 @@ const firebaseConfig = {
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+setPersistence(auth, browserLocalPersistence).catch(() => {});
 const db   = getFirestore(app);
 const functions = getFunctions(app, "us-central1");
 const storage = getStorage(app);
 
 export { app, auth, db, functions, storage };
-
 
 

@@ -91,9 +91,9 @@ function showToast(msg, type="success") {
 tabCreate.addEventListener('click', ()=>{ tabCreate.classList.add('active'); tabPayments.classList.remove('active'); createTab.style.display='block'; paymentsTab.style.display='none'; });
 tabPayments.addEventListener('click', ()=>{ tabPayments.classList.add('active'); tabCreate.classList.remove('active'); createTab.style.display='none'; paymentsTab.style.display='block'; });
 
-backBtn.addEventListener('click', ()=> window.history.back());
+backBtn.addEventListener('click', ()=> window.location.replace('/employee/employee.html'));
 refreshBtn.addEventListener('click', ()=> location.reload());
-cancelCreate.addEventListener('click', ()=> window.history.back());
+cancelCreate.addEventListener('click', ()=> window.location.replace('/employee/employee.html'));
 
 // job/system helpers
 function parseJobNoNumber(jno) {
@@ -442,4 +442,3 @@ createJobSubmit.addEventListener('click', async ()=>{
     setTimeout(()=> window.location.reload(), 700);
   }catch(err){ console.error('create job error', err); showToast('Error creating records','error'); createJobSubmit.disabled=false; }
 });
-

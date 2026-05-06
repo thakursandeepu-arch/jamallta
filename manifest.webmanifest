@@ -2,7 +2,7 @@
   "name": "Jamallta Films",
   "short_name": "Jamallta",
   "description": "Wedding photography, cinematography, and video editing studio in Solan.",
-  "start_url": "/",
+  "start_url": "/login/login.html",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
