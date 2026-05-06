@@ -198,6 +198,11 @@
               <button class="btn ghost" id="profilePunchOut">Punch Out</button>
               <div class="punch-meta" id="profilePunchInfo">Punch In: --:-- • Punch Out: --:--</div>
             </div>
+            <div class="att-profile-tools punch-edit-tools">
+              <input class="input" id="profilePunchInTime" type="time" aria-label="Punch in time" />
+              <input class="input" id="profilePunchOutTime" type="time" aria-label="Punch out time" />
+              <button class="btn ghost" id="profilePunchSave">Update Punch Times</button>
+            </div>
             <div class="att-monthly">
               <div class="section-title">Monthly Attendance Details</div>
               <div class="jobs-tools">
@@ -212,11 +217,12 @@
                     <th>Punch Out</th>
                     <th>Worked</th>
                     <th>Earnings (Rs)</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody id="attMonthBody">
                   <tr>
-                    <td colspan="6" class="table-empty">No attendance records</td>
+                    <td colspan="7" class="table-empty">No attendance records</td>
                   </tr>
                 </tbody>
               </table>

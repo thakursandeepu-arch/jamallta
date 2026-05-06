@@ -80,6 +80,9 @@ const profileAttMark = document.getElementById("profileAttMark");
 const profilePunchIn = document.getElementById("profilePunchIn");
 const profilePunchOut = document.getElementById("profilePunchOut");
 const profilePunchInfo = document.getElementById("profilePunchInfo");
+const profilePunchInTime = document.getElementById("profilePunchInTime");
+const profilePunchOutTime = document.getElementById("profilePunchOutTime");
+const profilePunchSave = document.getElementById("profilePunchSave");
 const attMonthBody = document.getElementById("attMonthBody");
 const attMonthFilter = document.getElementById("attMonthFilter");
 const mWork = document.getElementById("mWork");
@@ -276,6 +279,12 @@ function minutesBetween(a, b) {
   return Math.round(diff / 60000);
 }
 
+function dateWithTime(dateKey, timeKey) {
+  if (!dateKey || !timeKey) return null;
+  const d = new Date(`${dateKey}T${timeKey}:00`);
+  return isNaN(d) ? null : d;
+}
+
 function hourlyRateFromSalary(monthlySalary) {
   const base = parseSalaryNumber(monthlySalary);
   if (!base) return 0;
@@ -441,7 +450,7 @@ function renderMonthlyAttendanceRows(rows) {
     ? rows.filter(r => monthKeyFromYMD(r.date) === selectedMonth)
     : rows;
   if (!filtered.length) {
-    attMonthBody.innerHTML = `<tr><td colspan="6" class="table-empty">No attendance records</td></tr>`;
+    attMonthBody.innerHTML = `<tr><td colspan="7" class="table-empty">No attendance records</td></tr>`;
     return;
   }
   const html = filtered.map(r => {
@@ -463,9 +472,19 @@ function renderMonthlyAttendanceRows(rows) {
         <td data-label="Punch Out">${outTime}</td>
         <td data-label="Worked">${worked}</td>
         <td data-label="Earnings">${formatSalary(earned)}</td>
+        <td data-label="Action"><button class="btn ghost att-row-edit" data-date="${date}" data-in="${inTime === "--:--" ? "" : inTime}" data-out="${outTime === "--:--" ? "" : outTime}">Edit</button></td>
       </tr>`;
   }).join("");
   attMonthBody.innerHTML = html;
+  attMonthBody.querySelectorAll(".att-row-edit").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (profileAttDate) profileAttDate.value = btn.dataset.date || todayYMD();
+      if (profilePunchInTime) profilePunchInTime.value = btn.dataset.in || "";
+      if (profilePunchOutTime) profilePunchOutTime.value = btn.dataset.out || "";
+      if (profileAttTime) profileAttTime.value = btn.dataset.in || btn.dataset.out || nowHM();
+      refreshProfileAttendanceInfo();
+    });
+  });
 }
 
 function selectedMonthRange() {
@@ -1183,25 +1202,29 @@ async function markAttendance({ name, email, employeeId, status, dateYMD, timeHM
 }
 
 async function getAttendanceDocForDate({ email, employeeId, dateKey }) {
-  let q = null;
+  const queries = [];
   if (email) {
-    q = query(
+    queries.push(query(
       collection(db, "attendance"),
       where("employeeEmail", "==", email),
       where("dateYMD", "==", dateKey)
-    );
-  } else if (employeeId) {
-    q = query(
+    ));
+  }
+  if (employeeId) {
+    queries.push(query(
       collection(db, "attendance"),
       where("employeeId", "==", employeeId),
       where("dateYMD", "==", dateKey)
-    );
+    ));
   }
-  if (!q) return { id: null, data: null };
-  const snap = await getDocs(q);
-  if (snap.empty) return { id: null, data: null };
-  const docSnap = snap.docs[0];
-  return { id: docSnap.id, data: docSnap.data() };
+  for (const q of queries) {
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      return { id: docSnap.id, data: docSnap.data() };
+    }
+  }
+  return { id: null, data: null };
 }
 
 async function refreshProfileAttendanceInfo() {
@@ -1217,7 +1240,73 @@ async function refreshProfileAttendanceInfo() {
     ? data.workedMinutes
     : minutesBetween(data?.punchInAt, data?.punchOutAt);
   const workedLabel = minutesToLabel(workedMinutes);
-  profilePunchInfo.textContent = `Punch In: ${punchIn} � Punch Out: ${punchOut} � Worked: ${workedLabel}`;
+  if (profilePunchInTime) profilePunchInTime.value = punchIn === "--:--" ? "" : punchIn;
+  if (profilePunchOutTime) profilePunchOutTime.value = punchOut === "--:--" ? "" : punchOut;
+  profilePunchInfo.textContent = `Punch In: ${punchIn} | Punch Out: ${punchOut} | Worked: ${workedLabel}`;
+}
+
+async function savePunchTimes() {
+  if (!currentID) return;
+  const name = fName?.value || "";
+  const email = (fEmail?.value || "").toLowerCase().trim();
+  const employeeId = fEmployeeId?.value || "";
+  const dateKey = profileAttDate?.value || todayYMD();
+  const punchInTime = profilePunchInTime?.value || "";
+  const punchOutTime = profilePunchOutTime?.value || "";
+
+  if (!punchInTime && !punchOutTime) {
+    showToast("Punch time missing", true);
+    return;
+  }
+
+  const punchInAt = dateWithTime(dateKey, punchInTime);
+  const punchOutAt = dateWithTime(dateKey, punchOutTime);
+  const attendanceAt = punchInAt || punchOutAt || new Date(`${dateKey}T00:00:00`);
+  const payload = {
+    employeeEmail: email || "",
+    employeeId: employeeId || "",
+    name: name || "",
+    dateYMD: dateKey,
+    attendanceAt,
+    updatedAt: serverTimestamp()
+  };
+
+  if (punchInAt) {
+    payload.punchInAt = punchInAt;
+    payload.punchInTime = punchInTime;
+  }
+  if (punchOutAt) {
+    payload.punchOutAt = punchOutAt;
+    payload.punchOutTime = punchOutTime;
+  }
+  if (punchInAt && punchOutAt) {
+    payload.workedMinutes = minutesBetween(punchInAt, punchOutAt);
+    payload.status = "present";
+  } else if (punchInAt) {
+    payload.status = "present";
+  }
+
+  try {
+    const { id } = await getAttendanceDocForDate({ email, employeeId, dateKey });
+    if (id) {
+      await updateDoc(doc(db, "attendance", id), payload);
+    } else {
+      payload.createdAt = serverTimestamp();
+      await addDoc(collection(db, "attendance"), payload);
+    }
+    showToast("Punch times updated");
+    await refreshProfileAttendanceInfo();
+    await createNotification({
+      userEmail: email,
+      employeeId,
+      title: "Punch Times Updated",
+      message: `Punch times updated for ${dateKey}.`,
+      type: "attendance",
+    });
+  } catch (err) {
+    console.error("savePunchTimes error:", err);
+    showToast("Punch time update failed", true);
+  }
 }
 
 async function punchAttendance(type) {
@@ -1343,6 +1432,8 @@ async function openProfile(id) {
   if (profileAttDate) profileAttDate.value = todayYMD();
   if (profileAttTime) profileAttTime.value = nowHM();
   if (profileAttStatus) profileAttStatus.value = "present";
+  if (profilePunchInTime) profilePunchInTime.value = "";
+  if (profilePunchOutTime) profilePunchOutTime.value = "";
   refreshProfileAttendanceInfo();
   if (d.email || d.employeeId || d.fullName) {
     loadEmployeeJobs(d.email || "", d.employeeId || "", d.fullName || "");
@@ -1981,6 +2072,10 @@ if (profilePunchIn) {
 
 if (profilePunchOut) {
   profilePunchOut.addEventListener("click", () => punchAttendance("out"));
+}
+
+if (profilePunchSave) {
+  profilePunchSave.addEventListener("click", savePunchTimes);
 }
 
 if (attMonthFilter) {
