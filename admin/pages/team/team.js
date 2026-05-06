@@ -1309,12 +1309,29 @@ async function savePunchTimes() {
   }
 }
 
-async function punchAttendance(type) {
+function promptPunchTime(type) {
+  const label = type === "in" ? "Punch In" : "Punch Out";
+  const savedTime = type === "in" ? profilePunchInTime?.value : profilePunchOutTime?.value;
+  const fallback = savedTime || profileAttTime?.value || nowHM();
+  const value = window.prompt(`Enter ${label} time (HH:MM)`, fallback);
+  if (value == null) return "";
+  const timeKey = value.trim();
+  if (!/^\d{2}:\d{2}$/.test(timeKey) || !dateWithTime(profileAttDate?.value || todayYMD(), timeKey)) {
+    showToast("Invalid time. Use HH:MM", true);
+    return "";
+  }
+  if (type === "in" && profilePunchInTime) profilePunchInTime.value = timeKey;
+  if (type === "out" && profilePunchOutTime) profilePunchOutTime.value = timeKey;
+  if (profileAttTime) profileAttTime.value = timeKey;
+  return timeKey;
+}
+
+async function punchAttendance(type, selectedTime = "") {
   const name = fName?.value || "";
   const email = (fEmail?.value || "").toLowerCase().trim();
   const employeeId = fEmployeeId?.value || "";
   const dateKey = profileAttDate?.value || todayYMD();
-  const timeKey = profileAttTime?.value || nowHM();
+  const timeKey = selectedTime || profileAttTime?.value || nowHM();
   const attendanceAt = new Date(`${dateKey}T${timeKey}:00`);
   const payload = {
     employeeEmail: email || "",
@@ -1336,6 +1353,10 @@ async function punchAttendance(type) {
 
   try {
     const { id, data } = await getAttendanceDocForDate({ email, employeeId, dateKey });
+    if (type === "in") {
+      const workedMinutes = minutesBetween(attendanceAt, data?.punchOutAt);
+      if (Number.isFinite(workedMinutes)) payload.workedMinutes = workedMinutes;
+    }
     if (type === "out") {
       const workedMinutes = minutesBetween(data?.punchInAt, attendanceAt);
       if (Number.isFinite(workedMinutes)) payload.workedMinutes = workedMinutes;
@@ -2067,11 +2088,17 @@ if (profileAttDate) {
 }
 
 if (profilePunchIn) {
-  profilePunchIn.addEventListener("click", () => punchAttendance("in"));
+  profilePunchIn.addEventListener("click", () => {
+    const timeKey = promptPunchTime("in");
+    if (timeKey) punchAttendance("in", timeKey);
+  });
 }
 
 if (profilePunchOut) {
-  profilePunchOut.addEventListener("click", () => punchAttendance("out"));
+  profilePunchOut.addEventListener("click", () => {
+    const timeKey = promptPunchTime("out");
+    if (timeKey) punchAttendance("out", timeKey);
+  });
 }
 
 if (profilePunchSave) {
