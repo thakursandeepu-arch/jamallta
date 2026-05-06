@@ -20,6 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const notifList   = document.getElementById("adminNotifList");
   const notifSub    = document.getElementById("adminNotifSub");
   const markReadBtn = document.getElementById("adminNotifMarkRead");
+  const notifyPermissionBox = document.getElementById("notifyPermissionBox");
+  const enableAdminNotify = document.getElementById("enableAdminNotify");
+  const notifyPermissionHint = document.getElementById("notifyPermissionHint");
 
   let adminNotifications = [];
   let adminNotifUnsub = null;
@@ -71,11 +74,30 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
   }
 
+  function refreshNotifyPermissionUI() {
+    if (!notifyPermissionBox) return;
+    if (!("Notification" in window)) {
+      notifyPermissionBox.classList.remove("show");
+      return;
+    }
+    if (Notification.permission === "granted") {
+      notifyPermissionBox.classList.remove("show");
+      return;
+    }
+    notifyPermissionBox.classList.add("show");
+    if (notifyPermissionHint) {
+      notifyPermissionHint.textContent = Notification.permission === "denied"
+        ? "Notifications blocked. Enable them from browser site settings."
+        : "Tap allow to receive Job Assigned alerts.";
+    }
+    if (enableAdminNotify) {
+      enableAdminNotify.disabled = Notification.permission === "denied";
+      enableAdminNotify.textContent = Notification.permission === "denied" ? "Blocked" : "Allow";
+    }
+  }
+
   async function showAdminBrowserNotification(title, message) {
     if (!("Notification" in window)) return;
-    if (Notification.permission === "default") {
-      try { await Notification.requestPermission(); } catch {}
-    }
     if (Notification.permission !== "granted") return;
     try {
       if ("serviceWorker" in navigator) {
@@ -152,7 +174,23 @@ document.addEventListener("DOMContentLoaded", () => {
     pageTitle.textContent = activeBtn.innerText.trim();
   }
 
+  refreshNotifyPermissionUI();
   startAdminNotificationPanel();
+
+  if (enableAdminNotify) {
+    enableAdminNotify.addEventListener("click", async () => {
+      if (!("Notification" in window)) return;
+      try {
+        await Notification.requestPermission();
+        refreshNotifyPermissionUI();
+        if (Notification.permission === "granted") {
+          await showAdminBrowserNotification("Notifications enabled", "Job Assigned alerts will appear on this device.");
+        }
+      } catch {
+        refreshNotifyPermissionUI();
+      }
+    });
+  }
 
   if (notifBtn && notifPanel) {
     notifBtn.addEventListener("click", (e) => {
