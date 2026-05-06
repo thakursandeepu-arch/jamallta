@@ -1,4 +1,4 @@
-const CACHE_NAME = "jamallta-pwa-v6";
+const CACHE_NAME = "jamallta-pwa-v7";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -85,7 +85,7 @@ self.addEventListener("notificationclick", (event) => {
         clientsArr[0].focus();
         return;
       }
-      return self.clients.openWindow("/");
+      return self.clients.openWindow("/admin/admin.html");
     })
   );
 });

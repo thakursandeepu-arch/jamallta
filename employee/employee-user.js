@@ -1862,9 +1862,12 @@ if (confirmAssign) {
       // remove from availableProjects and close modal
       availableProjects = availableProjects.filter((p) => p.id !== proj.id);
       if (assignModal) assignModal.style.display = "none";
+      const editorName = currentUserData?.fullName || currentUserEmail || "Editor";
+      const jobNo = jobData.jobNo || "No job no";
+      const projectName = jobData.projectName || "Project";
       await createAdminNotification({
         title: "Job Assigned",
-        message: `Job assigned to ${currentUserData?.fullName || currentUserEmail} (${jobData.projectName || "Project"}).`,
+        message: `${editorName} assigned ${jobNo} - ${projectName} for ${studioName}.`,
         studioName: jobData.studioName || jobData.customerName || "",
         jobNo: jobData.jobNo || "",
         source: "job_assigned",

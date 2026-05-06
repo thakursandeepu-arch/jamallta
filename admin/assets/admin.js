@@ -23,6 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let adminNotifications = [];
   let adminNotifUnsub = null;
+  let lastAdminNotifSeconds = 0;
 
   const escapeHtml = (value) => String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -70,6 +71,28 @@ document.addEventListener("DOMContentLoaded", () => {
     `).join("");
   }
 
+  async function showAdminBrowserNotification(title, message) {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "default") {
+      try { await Notification.requestPermission(); } catch {}
+    }
+    if (Notification.permission !== "granted") return;
+    try {
+      if ("serviceWorker" in navigator) {
+        const reg = await navigator.serviceWorker.ready;
+        await reg.showNotification(title, {
+          body: message,
+          icon: "/favicon.ico",
+          tag: `admin-${Date.now()}`,
+        });
+        return;
+      }
+    } catch {}
+    try {
+      new Notification(title, { body: message, icon: "/favicon.ico" });
+    } catch {}
+  }
+
   async function startAdminNotificationPanel() {
     if (adminNotifUnsub) return;
     try {
@@ -90,11 +113,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(40));
         adminNotifUnsub = onSnapshot(q, (snap) => {
           adminNotifications = [];
+          let maxSeen = lastAdminNotifSeconds;
+          if (!snap.empty && lastAdminNotifSeconds === 0) {
+            lastAdminNotifSeconds = Math.floor(Date.now() / 1000);
+          }
           snap.forEach(d => {
             const data = d.data() || {};
             if ((data.audience || "admin") !== "admin") return;
             adminNotifications.push({ id: d.id, ...data });
+            const ts = data.createdAt?.seconds || 0;
+            if (lastAdminNotifSeconds && ts > lastAdminNotifSeconds) {
+              showAdminBrowserNotification(data.title || "Notification", data.message || "");
+              if (ts > maxSeen) maxSeen = ts;
+            }
           });
+          if (maxSeen > lastAdminNotifSeconds) lastAdminNotifSeconds = maxSeen;
           renderAdminNotifications();
         }, (err) => {
           console.error("Admin notifications listener failed:", err);
@@ -118,6 +151,8 @@ document.addEventListener("DOMContentLoaded", () => {
   if (activeBtn && pageTitle) {
     pageTitle.textContent = activeBtn.innerText.trim();
   }
+
+  startAdminNotificationPanel();
 
   if (notifBtn && notifPanel) {
     notifBtn.addEventListener("click", (e) => {
