@@ -119,8 +119,6 @@ document.addEventListener("DOMContentLoaded", () => {
     pageTitle.textContent = activeBtn.innerText.trim();
   }
 
-  startAdminNotificationPanel();
-
   if (notifBtn && notifPanel) {
     notifBtn.addEventListener("click", (e) => {
       e.stopPropagation();
