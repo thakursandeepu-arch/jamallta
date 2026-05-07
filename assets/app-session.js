@@ -29,6 +29,11 @@ async function redirectLoggedInUser(user) {
         window.location.replace("/admin/admin.html");
         return;
       }
+      const adminByEmail = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+      if (adminByEmail.docs.some((d) => String(d.data()?.role || "").toLowerCase().includes("admin"))) {
+        window.location.replace("/admin/admin.html");
+        return;
+      }
     } catch {}
   }
 

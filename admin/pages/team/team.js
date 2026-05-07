@@ -38,7 +38,7 @@ const updateAuthUserHttpUrl = "https://us-central1-jamallta-films-2-27d2b.cloudf
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    window.location.href = "/login";
+    window.top.location.replace("/login/login.html");
   }
 });
 

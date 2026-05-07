@@ -1,90 +1,99 @@
 // admin-auth.js
-// 🔐 Admin Security Guard – FINAL
+// Admin Security Guard
 
 import { auth, db } from "/login/assets/firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
 const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
 
-/* ===== REDIRECT TO LOGIN ===== */
 function redirectToLogin() {
   console.warn("[admin-auth] redirecting to login");
-  window.location.replace("/index.html");
+  const target = "/login/login.html";
+  if (window.top && window.top !== window.self) {
+    window.top.location.replace(target);
+    return;
+  }
+  window.location.replace(target);
 }
 
-/* ===== CHECK USER ROLE ===== */
-async function getUserRole(uid) {
+async function hasAdminRole(user) {
+  const email = (user.email || "").toLowerCase();
+  if (!isAllowedAdminEmail(email)) return false;
+
+  const roleIncludesAdmin = (snap) => {
+    if (!snap?.exists?.()) return false;
+    return String(snap.data()?.role || "").toLowerCase().includes("admin");
+  };
+
   try {
-    // employees collection first
-    const empSnap = await getDoc(doc(db, "employees", uid));
-    if (empSnap.exists()) {
-      return (empSnap.data().role || "").toLowerCase();
-    }
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (roleIncludesAdmin(userSnap)) return true;
 
-    // users collection fallback
-    const userSnap = await getDoc(doc(db, "users", uid));
-    if (userSnap.exists()) {
-      return (userSnap.data().role || "").toLowerCase();
-    }
+    const userByEmail = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+    if (userByEmail.docs.some(roleIncludesAdmin)) return true;
 
-    return "";
+    const empSnap = await getDoc(doc(db, "employees", user.uid));
+    if (roleIncludesAdmin(empSnap)) return true;
+
+    const empByEmail = await getDocs(query(collection(db, "employees"), where("email", "==", email)));
+    return empByEmail.docs.some(roleIncludesAdmin);
   } catch (err) {
     console.error("[admin-auth] role check failed", err);
-    return "";
+    return false;
   }
 }
 
-/* ===== AUTH LISTENER ===== */
+async function setWelcomeName(user) {
+  const welcome = document.getElementById("welcomeName");
+  if (!welcome) return;
+
+  try {
+    const empSnap = await getDoc(doc(db, "employees", user.uid));
+    if (empSnap.exists() && empSnap.data().name) {
+      welcome.textContent = "Welcome, " + empSnap.data().name;
+      return;
+    }
+
+    const userSnap = await getDoc(doc(db, "users", user.uid));
+    if (userSnap.exists() && userSnap.data().name) {
+      welcome.textContent = "Welcome, " + userSnap.data().name;
+      return;
+    }
+
+    welcome.textContent = "Welcome, " + (user.displayName || "Admin");
+  } catch {
+    welcome.textContent = "Welcome, Admin";
+  }
+}
+
 onAuthStateChanged(auth, async (user) => {
   try {
-    // ❌ Not logged in
     if (!user) {
       redirectToLogin();
       return;
     }
 
-    // ❌ Email must be whitelisted for admin
-    if (!isAllowedAdminEmail(user.email)) {
-      console.warn("[admin-auth] access denied (email not allowed)");
-      redirectToLogin();
-      return;
-    }
-
-    // ✅ Logged in → check role
-    const role = await getUserRole(user.uid);
-
-    if (!role || !role.includes("admin")) {
+    const isAdmin = await hasAdminRole(user);
+    if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
       redirectToLogin();
       return;
     }
 
-    // ✅ Admin allowed → set welcome name
-    document.addEventListener("DOMContentLoaded", async () => {
-      const welcome = document.getElementById("welcomeName");
-      if (!welcome) return;
-
-      try {
-        const empSnap = await getDoc(doc(db, "employees", user.uid));
-        if (empSnap.exists() && empSnap.data().name) {
-          welcome.textContent = "Welcome, " + empSnap.data().name;
-          return;
-        }
-
-        const userSnap = await getDoc(doc(db, "users", user.uid));
-        if (userSnap.exists() && userSnap.data().name) {
-          welcome.textContent = "Welcome, " + userSnap.data().name;
-          return;
-        }
-
-        welcome.textContent = "Welcome, " + (user.displayName || "Admin");
-      } catch {
-        welcome.textContent = "Welcome, Admin";
-      }
-    });
-
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
+    } else {
+      setWelcomeName(user);
+    }
   } catch (err) {
     console.error("[admin-auth] unexpected error", err);
     redirectToLogin();

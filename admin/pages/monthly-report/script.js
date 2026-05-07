@@ -665,12 +665,11 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    window.location.href = "/login";
+    window.top.location.replace("/login/login.html");
     return;
   }
   if (btnLoad) btnLoad.click();
 });
-
 
 
 

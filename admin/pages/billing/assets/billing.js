@@ -355,7 +355,7 @@ function startListeners() {
 
 onAuthStateChanged(auth, (user) => {
   if (!user) {
-    window.location.href = "/login";
+    window.top.location.replace("/login/login.html");
     return;
   }
   startListeners();
