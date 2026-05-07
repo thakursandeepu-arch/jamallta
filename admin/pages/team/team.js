@@ -684,9 +684,7 @@ function renderAttendanceSummary(records, team = []) {
 
   const offDay = isOffDay(selectedDate);
   latestByKey.forEach(({ r }) => {
-    const hasPunchOut = Boolean(r.punchOutAt || r.punchOutTime || r.punchOut);
     let st = normalizeStatus(r.status);
-    if (st === "present" && !hasPunchOut) st = "half-day";
     if (!st) return;
     if (offDay) {
       if (st === "present") { present += 1; total += 1; }
