@@ -13,7 +13,41 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
+const ADMIN_SESSION_KEY = "jamallta_admin_session";
+const ADMIN_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
+const isFramedAdminPage = window.top && window.top !== window.self;
+
+function readAdminSession(user) {
+  try {
+    const cached = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || localStorage.getItem(ADMIN_SESSION_KEY) || "{}");
+    const email = (user?.email || "").toLowerCase();
+    return cached?.uid === user?.uid &&
+      cached?.email === email &&
+      Date.now() - Number(cached?.savedAt || 0) < ADMIN_SESSION_MAX_AGE_MS;
+  } catch {
+    return false;
+  }
+}
+
+function saveAdminSession(user) {
+  try {
+    const payload = JSON.stringify({
+      uid: user.uid,
+      email: (user.email || "").toLowerCase(),
+      savedAt: Date.now()
+    });
+    sessionStorage.setItem(ADMIN_SESSION_KEY, payload);
+    localStorage.setItem(ADMIN_SESSION_KEY, payload);
+  } catch {}
+}
+
+function clearAdminSession() {
+  try {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  } catch {}
+}
 
 function redirectToLogin() {
   console.warn("[admin-auth] redirecting to login");
@@ -78,16 +112,25 @@ async function setWelcomeName(user) {
 async function checkAdminAccess(user) {
   try {
     if (!user) {
+      clearAdminSession();
       redirectToLogin();
+      return;
+    }
+
+    if (isFramedAdminPage && (readAdminSession(user) || isAllowedAdminEmail(user.email))) {
+      saveAdminSession(user);
       return;
     }
 
     const isAdmin = await hasAdminRole(user);
     if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
+      clearAdminSession();
       redirectToLogin();
       return;
     }
+
+    saveAdminSession(user);
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
