@@ -49,14 +49,17 @@ function clearAdminSession() {
   } catch {}
 }
 
-function redirectToLogin() {
-  console.warn("[admin-auth] redirecting to login");
-  const target = "/login/login.html";
-  if (window.top && window.top !== window.self) {
-    window.top.location.replace(target);
+function markAdminAuthBlocked(reason) {
+  console.warn(`[admin-auth] access not confirmed: ${reason}`);
+  document.documentElement.dataset.adminAuth = "blocked";
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => markAdminAuthBlocked(reason), { once: true });
     return;
   }
-  window.location.replace(target);
+  const welcome = document.getElementById("welcomeName");
+  if (welcome && !auth.currentUser) {
+    welcome.textContent = "Login required";
+  }
 }
 
 async function hasAdminRole(user) {
@@ -113,7 +116,7 @@ async function checkAdminAccess(user) {
   try {
     if (!user) {
       clearAdminSession();
-      redirectToLogin();
+      markAdminAuthBlocked("not signed in");
       return;
     }
 
@@ -126,7 +129,7 @@ async function checkAdminAccess(user) {
     if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
       clearAdminSession();
-      redirectToLogin();
+      markAdminAuthBlocked("not admin");
       return;
     }
 
@@ -139,7 +142,7 @@ async function checkAdminAccess(user) {
     }
   } catch (err) {
     console.error("[admin-auth] unexpected error", err);
-    redirectToLogin();
+    markAdminAuthBlocked("unexpected error");
   }
 }
 

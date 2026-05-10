@@ -1,4 +1,4 @@
-const CACHE_NAME = "jamallta-pwa-v15";
+const CACHE_NAME = "jamallta-pwa-v16";
 const APP_SHELL = [
   "/",
   "/index.html",
