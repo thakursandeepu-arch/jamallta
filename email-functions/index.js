@@ -6,9 +6,18 @@ admin.initializeApp();
 const db = admin.firestore();
 
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
+const GOOGLE_REVIEW_URL = "https://share.google/RCf4cfOT3erqcA0tk";
 
 function normEmail(v) {
   return (v || "").toString().trim().toLowerCase();
+}
+
+function pickEmail(...values) {
+  for (const value of values) {
+    const email = normEmail(value);
+    if (email && email.includes("@")) return email;
+  }
+  return "";
 }
 
 function getGmailConfig() {
@@ -46,7 +55,7 @@ async function isAdminCaller(context) {
 
 function isJobReadyForEmail(job = {}) {
   const status = normEmail(job.status);
-  return status === "delivered" || status === "completed" || !!job.dataDeliverDate;
+  return status === "ready" || status === "delivered" || status === "completed" || !!job.dataReadyDate || !!job.dataDeliverDate;
 }
 
 function formatJobDate(value) {
@@ -91,6 +100,23 @@ function buildPaymentPageUrl(amount, note = "Jamallta Films Payment", type = "pa
     type
   });
   return `https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/paymentPage?${params.toString()}`;
+}
+
+function buildReviewTextLines() {
+  return [
+    "Share your experience with Jamallta Films:",
+    GOOGLE_REVIEW_URL
+  ];
+}
+
+function buildReviewHtmlSection() {
+  return `
+    <div style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:16px;margin:22px 0">
+      <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Share Your Experience</div>
+      <p style="margin:8px 0 14px;line-height:1.6;color:#51473d">If you were happy with our work, we would truly appreciate a short Google review. Your feedback helps other clients choose Jamallta Films with confidence.</p>
+      <a href="${GOOGLE_REVIEW_URL}" style="display:inline-block;background:#b88a3d;color:#17120d;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Leave a Google Review</a>
+    </div>
+  `;
 }
 
 function getItemQtyDisplay(item = {}) {
@@ -189,6 +215,17 @@ async function getStudioTotalsForJob(job = {}) {
         customerAdvance = Number(customerData.advanceAmount || 0);
         break;
       }
+
+      const customerByName = await db.collection("customers")
+        .where("customerName", "==", name)
+        .limit(1)
+        .get();
+      if (!customerByName.empty) {
+        const customerData = customerByName.docs[0].data() || {};
+        if (customerData.balance != null) customerBalance = Number(customerData.balance || 0);
+        customerAdvance = Number(customerData.advanceAmount || 0);
+        break;
+      }
     }
   }
 
@@ -206,9 +243,9 @@ async function getStudioTotalsForJob(job = {}) {
     return sum + Number(payment.amount || 0);
   }, 0);
   const ledgerBalance = Math.max(totals.total - paymentsTotal, 0);
-  const currentBalance = payments.size || jobs.size
-    ? ledgerBalance
-    : Math.max(customerBalance || totals.pending || 0, 0);
+  const currentBalance = customerBalance != null
+    ? Math.max(customerBalance, 0)
+    : (payments.size || jobs.size ? ledgerBalance : Math.max(totals.pending || 0, 0));
   return {
     total: currentBalance,
     paid: payments.size ? Math.min(paymentsTotal, totals.total) : totals.paid,
@@ -221,9 +258,10 @@ async function getStudioTotalsForJob(job = {}) {
 }
 
 async function findCustomerForJob(job = {}) {
-  if (job.customerEmail) {
+  const jobEmail = pickEmail(job.customerEmail, job.email, job.gmail, job.customerGmail, job.contactEmail);
+  if (jobEmail) {
     return {
-      email: job.customerEmail,
+      email: jobEmail,
       studioName: job.studioName || job.customerName || ""
     };
   }
@@ -232,9 +270,10 @@ async function findCustomerForJob(job = {}) {
     const snap = await db.doc(`customers/${job.customerId}`).get();
     if (snap.exists) {
       const c = snap.data() || {};
-      if (c.email) {
+      const customerEmail = pickEmail(c.email, c.gmail, c.customerEmail, c.customerGmail, c.contactEmail);
+      if (customerEmail) {
         return {
-          email: c.email,
+          email: customerEmail,
           studioName: c.studioName || c.customerName || job.studioName || job.customerName || ""
         };
       }
@@ -251,9 +290,10 @@ async function findCustomerForJob(job = {}) {
       .get();
     if (!snap.empty) {
       const c = snap.docs[0].data() || {};
-      if (c.email) {
+      const customerEmail = pickEmail(c.email, c.gmail, c.customerEmail, c.customerGmail, c.contactEmail);
+      if (customerEmail) {
         return {
-          email: c.email,
+          email: customerEmail,
           studioName: c.studioName || c.customerName || name
         };
       }
@@ -264,9 +304,10 @@ async function findCustomerForJob(job = {}) {
 }
 
 async function findCustomerForPayment(payment = {}) {
-  if (payment.customerEmail) {
+  const paymentEmail = pickEmail(payment.customerEmail, payment.email, payment.gmail, payment.customerGmail, payment.contactEmail);
+  if (paymentEmail) {
     return {
-      email: payment.customerEmail,
+      email: paymentEmail,
       studioName: payment.studioName || payment.customerName || ""
     };
   }
@@ -275,9 +316,10 @@ async function findCustomerForPayment(payment = {}) {
     const snap = await db.doc(`customers/${payment.customerId}`).get();
     if (snap.exists) {
       const c = snap.data() || {};
-      if (c.email) {
+      const customerEmail = pickEmail(c.email, c.gmail, c.customerEmail, c.customerGmail, c.contactEmail);
+      if (customerEmail) {
         return {
-          email: c.email,
+          email: customerEmail,
           studioName: c.studioName || c.customerName || payment.studioName || payment.customerName || ""
         };
       }
@@ -294,9 +336,10 @@ async function findCustomerForPayment(payment = {}) {
       .get();
     if (!snap.empty) {
       const c = snap.docs[0].data() || {};
-      if (c.email) {
+      const customerEmail = pickEmail(c.email, c.gmail, c.customerEmail, c.customerGmail, c.contactEmail);
+      if (customerEmail) {
         return {
-          email: c.email,
+          email: customerEmail,
           studioName: c.studioName || c.customerName || name
         };
       }
@@ -309,7 +352,6 @@ async function findCustomerForPayment(payment = {}) {
 async function getCurrentBalanceForPayment(payment = {}) {
   const jobs = new Map();
   const payments = new Map();
-  let customerBalance = null;
 
   const addJobs = (snap) => {
     snap.forEach(docSnap => {
@@ -327,7 +369,7 @@ async function getCurrentBalanceForPayment(payment = {}) {
 
   if (payment.customerId) {
     const customerSnap = await db.doc(`customers/${payment.customerId}`).get();
-    if (customerSnap.exists) customerBalance = Number(customerSnap.data()?.balance || 0);
+    if (customerSnap.exists) return Math.max(Number(customerSnap.data()?.balance || 0), 0);
 
     addJobs(await db.collection("jobs").where("customerId", "==", payment.customerId).get());
     addPayments(await db.collection("payments").where("customerId", "==", payment.customerId).get());
@@ -338,16 +380,22 @@ async function getCurrentBalanceForPayment(payment = {}) {
     .filter(Boolean);
 
   for (const name of names) {
-    addJobs(await db.collection("jobs").where("studioName", "==", name).get());
-    addPayments(await db.collection("payments").where("studioName", "==", name).get());
+    const customerByStudio = await db.collection("customers")
+      .where("studioName", "==", name)
+      .limit(1)
+      .get();
+    if (!customerByStudio.empty) return Math.max(Number(customerByStudio.docs[0].data()?.balance || 0), 0);
 
-    if (customerBalance == null) {
-      const customerSnap = await db.collection("customers")
-        .where("studioName", "==", name)
-        .limit(1)
-        .get();
-      if (!customerSnap.empty) customerBalance = Number(customerSnap.docs[0].data()?.balance || 0);
-    }
+    const customerByName = await db.collection("customers")
+      .where("customerName", "==", name)
+      .limit(1)
+      .get();
+    if (!customerByName.empty) return Math.max(Number(customerByName.docs[0].data()?.balance || 0), 0);
+
+    addJobs(await db.collection("jobs").where("studioName", "==", name).get());
+    addJobs(await db.collection("jobs").where("customerName", "==", name).get());
+    addPayments(await db.collection("payments").where("studioName", "==", name).get());
+    addPayments(await db.collection("payments").where("customerName", "==", name).get());
   }
 
   const totalJobsAmount = Array.from(jobs.values()).reduce((sum, job) => {
@@ -357,8 +405,8 @@ async function getCurrentBalanceForPayment(payment = {}) {
     return sum + Number(item.amount || 0);
   }, 0);
 
-  if (jobs.size || payments.size) return Math.max(totalJobsAmount - totalPayments, 0);
-  if (customerBalance != null) return Math.max(customerBalance - Number(payment.amount || 0), 0);
+  if (jobs.size) return Math.max(totalJobsAmount - totalPayments, 0);
+  if (payments.size) return Math.max(totalJobsAmount - totalPayments, 0);
   return null;
 }
 
@@ -396,6 +444,8 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
     "",
     "For delivery, payment, or project queries, you can reply to this email or contact us on WhatsApp.",
     "",
+    ...buildReviewTextLines(),
+    "",
     "Regards,",
     "Jamallta Films",
     "Phone/WhatsApp: +91 8091181135"
@@ -419,6 +469,7 @@ async function sendCustomerUpdateMail({ to, studioName = "", balance = 0, reason
           ` : ""}
           <p style="margin:18px 0;line-height:1.65">For delivery, payment, or project queries, you can reply to this email or contact us on WhatsApp.</p>
           <a href="https://wa.me/918091181135" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Contact on WhatsApp</a>
+          ${buildReviewHtmlSection()}
           <p style="margin:24px 0 0;line-height:1.6;color:#51473d">Regards,<br><b>Jamallta Films</b><br>Phone/WhatsApp: +91 8091181135</p>
         </div>
       </div>
@@ -458,6 +509,8 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
     "",
     "Thank you for your payment.",
     "",
+    ...buildReviewTextLines(),
+    "",
     "Regards,",
     "Jamallta Films",
     "Phone/WhatsApp: +91 8091181135"
@@ -481,7 +534,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
           <div style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:16px;margin:18px 0">
             <div style="font-size:13px;color:#7c6b57;text-transform:uppercase;font-weight:700">Current Balance</div>
             <div style="font-size:24px;font-weight:700;color:#17120d;margin-top:4px">${formatMoney(balance)}</div>
-            ${balancePayUrl ? `<a href="${balancePayUrl}" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;margin-top:14px">Pay Balance</a>` : ""}
+            ${balancePayUrl ? `<a href="${balancePayUrl}" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;margin-top:14px">Pay Current Balance</a>` : ""}
           </div>
           ` : ""}
           ${safeMethod ? `<p style="margin:0 0 10px"><b>Payment method:</b> ${safeMethod}</p>` : ""}
@@ -489,6 +542,7 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
           ${safeNote ? `<p style="margin:0 0 10px"><b>Note:</b> ${safeNote}</p>` : ""}
           <p style="margin:18px 0;line-height:1.65">Thank you for your payment.</p>
           <a href="https://wa.me/918091181135" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700">Contact on WhatsApp</a>
+          ${buildReviewHtmlSection()}
           <p style="margin:24px 0 0;line-height:1.6;color:#51473d">Regards,<br><b>Jamallta Films</b><br>Phone/WhatsApp: +91 8091181135</p>
         </div>
       </div>
@@ -510,30 +564,39 @@ async function sendPaymentReceivedMail({ to, studioName = "", amount = 0, method
   });
 }
 
-async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, workTotal = 0, jobsPending = 0, pendingJobsCount = 0, advance = 0, jobTotal = 0, jobPending = 0 }) {
+async function sendProjectReadyMail({ to, studioName = "", projectName = "", jobNo = "", readyDate = "", items = [], total = 0, paid = 0, pending = 0, jobTotal = 0, jobPaid = 0, jobPending = 0, currentBalance = 0, emailType = "ready" }) {
   const project = projectName || jobNo || "your project";
-  const subject = `Project Delivered | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
+  const isDeliveredMail = emailType === "delivered";
+  const badgeText = isDeliveredMail ? "Project Delivered" : "Project Ready";
+  const headline = isDeliveredMail ? "Your project has been delivered" : "Your project is ready";
+  const summaryText = isDeliveredMail
+    ? "Good news. Your project has been delivered by Jamallta Films."
+    : "Good news. Your project is ready for delivery by Jamallta Films.";
+  const dateLabel = isDeliveredMail ? "Delivery Date" : "Ready Date";
+  const subject = `${isDeliveredMail ? "Project Delivered" : "Your Project Is Ready"} | ${project}${jobNo ? ` | ${jobNo}` : ""}`;
   const upiId = "thakursandeepm@oksbi";
-  const accountName = studioName || project;
-  const totalBillAmount = Math.max(Number(workTotal || total || 0), 0);
-  const currentBalanceAmount = Math.max(Number(pending || 0), 0);
-  const finalPayableAmount = currentBalanceAmount;
-  const paymentReceivedAmount = Math.max(totalBillAmount - finalPayableAmount, Number(paid || 0) + Number(advance || 0), 0);
-  const currentJobAmount = Math.min(
-    Math.max(Number(jobPending || jobTotal || 0), 0),
-    finalPayableAmount
-  );
-  const showJobPayOption = Number(pendingJobsCount || 0) > 1 && currentJobAmount > 0 && currentJobAmount < currentBalanceAmount;
-  const jobUpiUrl = buildUpiUrl(currentJobAmount, `Job payment ${jobNo || project}`);
-  const fullUpiUrl = buildUpiUrl(currentBalanceAmount, `Full balance payment ${accountName}`);
-  const jobPayUrl = buildPaymentPageUrl(currentJobAmount, `Job payment ${jobNo || project}`, "job");
-  const fullPayUrl = buildPaymentPageUrl(currentBalanceAmount, `Full balance payment ${accountName}`, "full");
   const safeItems = Array.isArray(items) ? items : [];
+  const itemsTotal = safeItems.reduce((sum, item) => sum + getItemRowTotal(item), 0);
+  const jobTotalAmount = Math.max(Number(jobTotal || total || itemsTotal || 0), 0);
+  const jobPaidAmount = Math.min(Math.max(Number(jobPaid || paid || 0), 0), jobTotalAmount);
+  const currentPayAmount = Math.min(
+    Math.max(Number(jobPending || pending || (jobTotalAmount - jobPaidAmount) || 0), 0),
+    jobTotalAmount
+  );
+  const fullCurrentBalance = Math.max(Number(currentBalance || currentPayAmount || 0), currentPayAmount);
+  const showFullBalanceOption = fullCurrentBalance > currentPayAmount + 0.009;
+  const jobPayUrl = buildPaymentPageUrl(currentPayAmount, `Job payment ${jobNo || project}`, "job");
+  const fullPayUrl = buildPaymentPageUrl(fullCurrentBalance, `Full current balance payment ${studioName || "Client"}`, "full");
+  const safeStudioName = escapeHtml(studioName || "Client");
+  const safeProject = escapeHtml(project);
+  const safeJobNo = escapeHtml(jobNo || "");
+  const safeReadyDate = escapeHtml(readyDate || "");
+
   const text = [
     `Hello ${studioName || "Client"},`,
     "",
-    `Good news. Your project "${project}" has been delivered by Jamallta Films.`,
-    readyDate ? `Delivery date: ${readyDate}` : "",
+    `${summaryText.replace("Your project", `Your project "${project}"`)}`,
+    readyDate ? `${dateLabel}: ${readyDate}` : "",
     jobNo ? `Job No: ${jobNo}` : "",
     "",
     safeItems.length ? "Project items:" : "",
@@ -545,14 +608,16 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
       return `- ${name}: ${qty || "-"} x ${formatMoney(price)} = ${formatMoney(rowTotal)}`;
     }),
     "",
-    `Total Bill: ${formatMoney(totalBillAmount)}`,
-    `Payment Received / Advance (-): ${formatMoney(paymentReceivedAmount)}`,
-    `Final Payable: ${formatMoney(finalPayableAmount)}`,
-    finalPayableAmount > 0 ? `UPI ID: ${upiId}` : "Your payment is complete. Current balance is Rs 0.00.",
-    showJobPayOption ? `Pay this job: ${jobUpiUrl}` : "",
-    total > 0 ? `Full payment: ${fullUpiUrl}` : "",
+    `This Job Total: ${formatMoney(jobTotalAmount)}`,
+    `Paid for This Job: ${formatMoney(jobPaidAmount)}`,
+    `This Job Balance: ${formatMoney(currentPayAmount)}`,
+    showFullBalanceOption ? `Full Current Balance: ${formatMoney(fullCurrentBalance)}` : "",
+    showFullBalanceOption ? `Pay full current balance: ${fullPayUrl}` : "",
+    currentPayAmount > 0 ? `Pay this job: ${jobPayUrl}` : "This job is fully paid. No payment is pending for this job.",
     "",
     "Please reply to this email or contact us on WhatsApp to confirm delivery and any pending details.",
+    "",
+    ...buildReviewTextLines(),
     "",
     "Regards,",
     "Jamallta Films",
@@ -561,32 +626,32 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
 
   const html = `
     <div style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,sans-serif;color:#1f2937">
-      <div style="display:none;max-height:0;overflow:hidden;color:#f4f1eb">Your project has been delivered. Review items, balance, and payment status.</div>
+      <div style="display:none;max-height:0;overflow:hidden;color:#f4f1eb">${headline}. Review items, balance, and payment status.</div>
       <div style="max-width:680px;margin:0 auto;padding:18px 10px">
         <div style="background:#17120d;color:#fffaf2;padding:24px 22px;border-radius:14px 14px 0 0">
           <div style="font-size:25px;font-weight:700;letter-spacing:.2px;line-height:1.2">Jamallta Films</div>
           <div style="margin-top:7px;color:#e7dac7;font-size:13px;line-height:1.45">Wedding Films, Photography and Editing Studio</div>
         </div>
         <div style="background:#ffffff;border:1px solid #eadfce;border-top:0;border-radius:0 0 14px 14px;padding:22px">
-          <div style="display:inline-block;background:#e8f7ee;color:#17613a;border:1px solid #bfe8cf;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;margin-bottom:18px">Project Delivered</div>
-          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#17120d">Your project has been delivered</h1>
-          <p style="margin:0 0 18px;font-size:16px;line-height:1.65">Hello ${studioName || "Client"},<br>Good news. Your project has been delivered by <b>Jamallta Films</b>.</p>
+          <div style="display:inline-block;background:#e8f7ee;color:#17613a;border:1px solid #bfe8cf;border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700;margin-bottom:18px">${badgeText}</div>
+          <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;color:#17120d">${headline}</h1>
+          <p style="margin:0 0 18px;font-size:16px;line-height:1.65">Hello ${safeStudioName},<br>${summaryText.replace("Jamallta Films", "<b>Jamallta Films</b>")}</p>
 
           <div style="border:1px solid #eadfce;border-radius:12px;overflow:hidden;margin:22px 0;background:#fffdf8">
             <div style="padding:14px 16px;border-bottom:1px solid #eadfce">
               <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Project Name</div>
-              <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:4px">${project}</div>
+              <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:4px">${safeProject}</div>
             </div>
             ${jobNo ? `
               <div style="padding:14px 16px;border-bottom:1px solid #eadfce">
                 <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Job No</div>
-                <div style="font-size:16px;color:#1f2937;margin-top:4px">${jobNo}</div>
+                <div style="font-size:16px;color:#1f2937;margin-top:4px">${safeJobNo}</div>
               </div>
             ` : ""}
             ${readyDate ? `
               <div style="padding:14px 16px">
-                <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">Delivery Date</div>
-                <div style="font-size:16px;color:#1f2937;margin-top:4px">${readyDate}</div>
+                <div style="font-size:12px;color:#7c6b57;text-transform:uppercase;font-weight:700">${dateLabel}</div>
+                <div style="font-size:16px;color:#1f2937;margin-top:4px">${safeReadyDate}</div>
               </div>
             ` : ""}
           </div>
@@ -623,71 +688,51 @@ async function sendProjectReadyMail({ to, studioName = "", projectName = "", job
           <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:0 10px;margin:14px 0 18px">
             <tr>
               <td style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">Total Bill</div>
-                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(totalBillAmount)}</div>
+                <div style="font-size:11px;color:#7c6b57;text-transform:uppercase;font-weight:700">This Job Total</div>
+                <div style="font-size:18px;font-weight:700;color:#17120d;margin-top:5px">${formatMoney(jobTotalAmount)}</div>
               </td>
               <td style="width:10px"></td>
               <td style="background:#f2fbf5;border:1px solid #cfead8;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#35754c;text-transform:uppercase;font-weight:700">Payment Received (-)</div>
-                <div style="font-size:18px;font-weight:700;color:#17613a;margin-top:5px">${formatMoney(paymentReceivedAmount)}</div>
+                <div style="font-size:11px;color:#35754c;text-transform:uppercase;font-weight:700">Paid for This Job</div>
+                <div style="font-size:18px;font-weight:700;color:#17613a;margin-top:5px">${formatMoney(jobPaidAmount)}</div>
               </td>
               <td style="width:10px"></td>
               <td style="background:#fff8ed;border:1px solid #eadfce;border-radius:12px;padding:14px;width:33.33%">
-                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">Final Payable</div>
-                <div style="font-size:18px;font-weight:700;color:#8a4b08;margin-top:5px">${formatMoney(finalPayableAmount)}</div>
+                <div style="font-size:11px;color:#7c4d17;text-transform:uppercase;font-weight:700">This Job Balance</div>
+                <div style="font-size:18px;font-weight:700;color:#8a4b08;margin-top:5px">${formatMoney(currentPayAmount)}</div>
               </td>
             </tr>
           </table>
 
-          ${(jobsPending > 0 || advance > 0 || paymentReceivedAmount > 0) ? `
-            <div style="background:#fffdf8;border:1px solid #eadfce;border-radius:12px;padding:13px 14px;margin:-6px 0 18px;color:#51473d;line-height:1.55;font-size:13px">
-              <b>Bill calculation:</b> ${formatMoney(totalBillAmount)} - ${formatMoney(paymentReceivedAmount)} = <b>${formatMoney(finalPayableAmount)}</b>
-              ${advance > 0 ? `<br><b>Advance adjusted:</b> ${formatMoney(advance)}` : ""}
-              ${jobsPending > 0 ? `<br><b>Jobs pending before adjustment:</b> ${formatMoney(jobsPending)}` : ""}
-            </div>
-          ` : ""}
-
-          ${finalPayableAmount <= 0 ? `
+          ${currentPayAmount <= 0 ? `
             <div style="background:#e8f7ee;border:1px solid #bfe8cf;border-radius:12px;padding:16px;margin:22px 0;color:#17613a;font-size:15px;line-height:1.55">
               <b>Payment Complete</b><br>
-              Thank you. Your current balance is ${formatMoney(0)}, so no payment is pending.
+              Thank you. No payment is pending for this job.
             </div>
           ` : ""}
 
-          ${(currentJobAmount > 0 || currentBalanceAmount > 0) ? `
+          ${currentPayAmount > 0 ? `
             <div style="background:#17120d;color:#fffaf2;border-radius:12px;padding:18px;margin:22px 0">
               <div style="font-size:19px;font-weight:700;margin-bottom:8px">Payment Options</div>
-              <div style="line-height:1.6;color:#e7dac7">Mobile par button tap karte hi Google Pay/UPI app open hoga. Desktop par same button QR code page kholega.</div>
               <div style="background:#fffaf2;color:#17120d;border-radius:8px;padding:12px;margin:14px 0 0;font-weight:700">UPI ID: ${upiId}</div>
-              <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:16px">
-                <tr>
-                  ${showJobPayOption ? `
-                    <td style="vertical-align:top;padding:0 0 12px;width:100%;display:block">
-                      <div style="background:#241b14;border:1px solid #3c3026;border-radius:12px;padding:14px">
-                        <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">Pay This Job</div>
-                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(currentJobAmount)}</div>
-                        <a href="${jobPayUrl}" style="display:block;background:#b88a3d;color:#17120d;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Pay This Job</a>
-                      </div>
-                    </td>
-                  ` : ""}
-                </tr>
-                <tr>
-                  ${currentBalanceAmount > 0 ? `
-                    <td style="vertical-align:top;padding:0;width:100%;display:block">
-                      <div style="background:#fffaf2;color:#17120d;border-radius:12px;padding:14px">
-                        <div style="color:#7c6b57;font-size:12px;text-transform:uppercase;font-weight:700">Full Pay Current Balance</div>
-                        <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(currentBalanceAmount)}</div>
-                        <a href="${fullPayUrl}" style="display:block;background:#17120d;color:#fffaf2;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Full Pay</a>
-                      </div>
-                    </td>
-                  ` : ""}
-                </tr>
-              </table>
+              ${showFullBalanceOption ? `
+              <div style="background:#fffaf2;color:#17120d;border-radius:12px;padding:14px;margin-top:16px">
+                <div style="color:#7c6b57;font-size:12px;text-transform:uppercase;font-weight:700">Full Current Balance</div>
+                <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(fullCurrentBalance)}</div>
+                <a href="${fullPayUrl}" style="display:block;background:#17120d;color:#fffaf2;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">Pay Full Current Balance</a>
+              </div>
+              ` : ""}
+              <div style="background:#241b14;border:1px solid #3c3026;border-radius:12px;padding:14px;margin-top:16px">
+                <div style="color:#e7dac7;font-size:12px;text-transform:uppercase;font-weight:700">${showFullBalanceOption ? "This Job Balance" : "Current Balance Due"}</div>
+                <div style="font-size:22px;font-weight:700;margin:5px 0 12px">${formatMoney(currentPayAmount)}</div>
+                <a href="${jobPayUrl}" style="display:block;background:#b88a3d;color:#17120d;text-decoration:none;text-align:center;padding:13px 14px;border-radius:8px;font-weight:700">${showFullBalanceOption ? "Pay This Job" : "Pay Current Balance"}</a>
+              </div>
             </div>
           ` : ""}
 
           <p style="margin:0 0 20px;line-height:1.65">Please reply to this email or contact us on WhatsApp to confirm delivery and any pending details.</p>
           <a href="https://wa.me/918091181135" style="display:inline-block;background:#17120d;color:#fffaf2;text-decoration:none;padding:13px 18px;border-radius:8px;font-weight:700">Contact on WhatsApp</a>
+          ${buildReviewHtmlSection()}
           <div style="height:1px;background:#eadfce;margin:26px 0"></div>
           <p style="margin:0;line-height:1.6;color:#51473d">Regards,<br><b>Jamallta Films</b><br>Phone/WhatsApp: +91 8091181135<br>Solan, Himachal Pradesh</p>
         </div>
@@ -749,10 +794,10 @@ exports.paymentPage = functions.https.onRequest((req, res) => {
       <p class="note">${escapeHtml(note)}</p>
       <button class="pay-btn" id="payButton" type="button">Pay Now</button>
       <div class="upi">UPI ID: ${upiId}</div>
-      <div class="qr-wrap" id="qrWrap"><img id="qrImage" alt="UPI payment QR code"><p>Desktop par payment ke liye Google Pay, PhonePe ya Paytm se QR scan karein.</p></div>
+      <div class="qr-wrap" id="qrWrap"><img id="qrImage" alt="UPI payment QR code"></div>
       <div class="status" id="status"></div>
     </section>
-    <footer class="footer">Payment complete hone ke baad screenshot WhatsApp par share kar dein. Phone/WhatsApp: +91 8091181135</footer>
+    <footer class="footer">After completing the payment, please share the payment confirmation with Jamallta Films. For assistance, contact us on WhatsApp at +91 8091181135.</footer>
   </main>
   <script>
     const upiUrl = ${JSON.stringify(upiUrl)};
@@ -763,13 +808,11 @@ exports.paymentPage = functions.https.onRequest((req, res) => {
     }
     function openPayment(){
       if(isMobileDevice()){
-        document.getElementById("status").textContent = "UPI app open ho rahi hai. Agar open na ho, Pay Now dobara tap karein.";
         window.location.href = upiUrl;
         return;
       }
       document.getElementById("qrImage").src = qrUrl;
       document.getElementById("qrWrap").classList.add("active");
-      document.getElementById("status").textContent = "QR code ready hai. Apne payment app se scan karein.";
     }
     document.getElementById("payButton").addEventListener("click", openPayment);
     if(isMobileDevice()) setTimeout(openPayment, 450);
@@ -811,15 +854,54 @@ exports.autoSendProjectReadyEmail = functions.firestore
 
     const before = change.before.exists ? change.before.data() || {} : {};
     const after = change.after.data() || {};
-    if (after.deleteData || after.readyEmailSentAt) return null;
+    const jobId = change.after.id;
+    if (after.deleteData) {
+      console.log("ready email skipped: deleted job", { jobId });
+      return null;
+    }
+    if (after.readyEmailSentAt) {
+      console.log("ready email skipped: already sent", { jobId });
+      return null;
+    }
+    if (after.readyEmailSkippedAt && change.before.exists && isJobReadyForEmail(before)) {
+      console.log("ready email skipped: previous attempt already skipped", {
+        jobId,
+        reason: after.readyEmailSkipReason || ""
+      });
+      return null;
+    }
+    if (after.readyEmailAttemptInProgress) {
+      console.log("ready email skipped: attempt in progress", { jobId });
+      return null;
+    }
 
     const wasReady = change.before.exists && isJobReadyForEmail(before);
     const isReadyNow = isJobReadyForEmail(after);
-    if (!isReadyNow || wasReady) return null;
+    if (!isReadyNow) {
+      console.log("ready email skipped: job not ready", {
+        jobId,
+        status: after.status || "",
+        dataReadyDate: after.dataReadyDate || "",
+        dataDeliverDate: after.dataDeliverDate || ""
+      });
+      return null;
+    }
+
+    await change.after.ref.update({
+      readyEmailAttemptInProgress: true,
+      readyEmailLastAttemptAt: admin.firestore.FieldValue.serverTimestamp()
+    });
 
     const customer = await findCustomerForJob(after);
     if (!customer?.email) {
+      console.log("ready email skipped: customer email missing", {
+        jobId,
+        customerId: after.customerId || "",
+        studioName: after.studioName || after.customerName || "",
+        wasReady
+      });
       await change.after.ref.update({
+        readyEmailAttemptInProgress: admin.firestore.FieldValue.delete(),
         readyEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
         readyEmailSkipReason: "customer_email_missing"
       });
@@ -829,24 +911,49 @@ exports.autoSendProjectReadyEmail = functions.firestore
     const currentJobTotals = getJobTotals(after);
     const studioTotals = await getStudioTotalsForJob(after);
 
-    await sendProjectReadyMail({
-      to: customer.email,
-      studioName: customer.studioName || after.studioName || after.customerName || "",
-      projectName: after.projectName || "",
-      jobNo: after.jobNo || "",
-      readyDate: formatJobDate(after.dataReadyDate || after.dataDeliverDate || new Date()),
-      items: after.itemsAdded || [],
-      ...studioTotals,
-      jobTotal: currentJobTotals.total,
-      jobPending: currentJobTotals.pending
-    });
+    try {
+      console.log("ready email sending", {
+        jobId,
+        to: normEmail(customer.email),
+        studioName: customer.studioName || after.studioName || after.customerName || "",
+        status: after.status || "",
+        dataReadyDate: after.dataReadyDate || "",
+        dataDeliverDate: after.dataDeliverDate || ""
+      });
+      await sendProjectReadyMail({
+        to: customer.email,
+        studioName: customer.studioName || after.studioName || after.customerName || "",
+        projectName: after.projectName || "",
+        jobNo: after.jobNo || "",
+        readyDate: formatJobDate(after.dataReadyDate || after.dataDeliverDate || new Date()),
+        items: after.itemsAdded || [],
+        jobTotal: currentJobTotals.total,
+        jobPaid: currentJobTotals.paid,
+        jobPending: currentJobTotals.pending,
+        currentBalance: studioTotals.pending,
+        emailType: after.dataDeliverDate || ["delivered", "completed"].includes(normEmail(after.status)) ? "delivered" : "ready"
+      });
 
-    await change.after.ref.update({
-      readyEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
-      readyEmailTo: normEmail(customer.email),
-      readyEmailSkippedAt: admin.firestore.FieldValue.delete(),
-      readyEmailSkipReason: admin.firestore.FieldValue.delete()
-    });
+      await change.after.ref.update({
+        readyEmailAttemptInProgress: admin.firestore.FieldValue.delete(),
+        readyEmailSentAt: admin.firestore.FieldValue.serverTimestamp(),
+        readyEmailTo: normEmail(customer.email),
+        readyEmailSkippedAt: admin.firestore.FieldValue.delete(),
+        readyEmailSkipReason: admin.firestore.FieldValue.delete()
+      });
+      console.log("ready email sent", { jobId, to: normEmail(customer.email) });
+    } catch (error) {
+      console.error("ready email failed", {
+        jobId,
+        to: normEmail(customer.email),
+        error: error?.message || String(error)
+      });
+      await change.after.ref.update({
+        readyEmailAttemptInProgress: admin.firestore.FieldValue.delete(),
+        readyEmailSkippedAt: admin.firestore.FieldValue.serverTimestamp(),
+        readyEmailSkipReason: error?.message || "ready_email_failed"
+      });
+    }
 
     return null;
   });
@@ -868,6 +975,16 @@ exports.autoSendPaymentReceivedEmail = functions.firestore
         return null;
       }
 
+      await new Promise(resolve => setTimeout(resolve, 2500));
+      const currentBalance = await getCurrentBalanceForPayment(payment);
+      console.log("payment received email balance", {
+        paymentId: snap.id,
+        amount,
+        currentBalance,
+        studioName: payment.studioName || payment.customerName || "",
+        customerId: payment.customerId || ""
+      });
+
       await sendPaymentReceivedMail({
         to: customer.email,
         studioName: customer.studioName || payment.studioName || payment.customerName || "",
@@ -875,7 +992,7 @@ exports.autoSendPaymentReceivedEmail = functions.firestore
         method: payment.method || "",
         note: payment.note || "",
         paymentId: payment.paymentId || "",
-        currentBalance: await getCurrentBalanceForPayment(payment)
+        currentBalance
       });
 
       await snap.ref.update({

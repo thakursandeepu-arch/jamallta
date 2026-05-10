@@ -1,25 +1,11 @@
 // script.js (module) - Firestore v11 modular SDK + Chart.js
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { auth, db } from "/login/assets/firebase-config.js";
 import {
-  getFirestore, collection, query, where, orderBy, getDocs, getDoc, doc
+  collection, query, where, orderBy, getDocs, getDoc, doc
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import {
-  getAuth,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
-
-/* FIREBASE CONFIG (your provided config) */
-const firebaseConfig = {
-  apiKey: "AIzaSyAcHb-VHdM30fb9qSR4dzclmNTxXsTofIw",
-  authDomain: "jamallta-films-2-27d2b.firebaseapp.com",
-  projectId: "jamallta-films-2-27d2b",
-  storageBucket: "jamallta-films-2-27d2b.firebasestorage.app",
-  messagingSenderId: "207209419416",
-  appId: "1:207209419416:web:53ff512e34553e9286b6ed"
-};
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
 
 /* DOM refs */
 const monthPicker = document.getElementById('monthPicker');
@@ -670,6 +656,5 @@ onAuthStateChanged(auth, (user) => {
   }
   if (btnLoad) btnLoad.click();
 });
-
 
 
