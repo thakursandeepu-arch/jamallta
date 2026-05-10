@@ -4,6 +4,7 @@
 
   var ANDROID_APK_URL = "https://github.com/thakursandeepu-arch/jamallta/releases/download/android-latest/Jamallta-debug.apk";
   var isAndroid = /Android/i.test(navigator.userAgent);
+  var isAndroidWebView = isAndroid && /; wv\)|Version\/[\d.]+ Chrome\/[\d.]+ Mobile Safari/i.test(navigator.userAgent);
   var deferredInstallPrompt = null;
   var isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -76,7 +77,7 @@
   window.addEventListener("load", function () {
     navigator.serviceWorker.register("/service-worker.js")
       .then(function () {
-        if (isAndroid) {
+        if (isAndroid && !isAndroidWebView) {
           createInstallButton("apk");
           return;
         }
