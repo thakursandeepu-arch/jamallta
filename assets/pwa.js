@@ -2,6 +2,8 @@
   var isMobileInstallDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (!isMobileInstallDevice) return;
 
+  var ANDROID_APK_URL = "https://github.com/thakursandeepu-arch/jamallta/releases/download/android-latest/Jamallta-debug.apk";
+  var isAndroid = /Android/i.test(navigator.userAgent);
   var deferredInstallPrompt = null;
   var isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
@@ -13,8 +15,8 @@
     var button = document.createElement("button");
     button.id = "jamalltaInstallAppBtn";
     button.type = "button";
-    button.textContent = "Install App";
-    button.setAttribute("aria-label", "Install Jamallta app");
+    button.textContent = isAndroid ? "Download Android App" : "Install App";
+    button.setAttribute("aria-label", isAndroid ? "Download Jamallta Android app" : "Install Jamallta app");
     button.style.cssText = [
       "position:fixed",
       "left:16px",
@@ -31,6 +33,11 @@
     ].join(";");
 
     button.addEventListener("click", function () {
+      if (isAndroid) {
+        window.location.href = ANDROID_APK_URL;
+        return;
+      }
+
       if (mode === "prompt" && deferredInstallPrompt) {
         deferredInstallPrompt.prompt();
         deferredInstallPrompt.userChoice.finally(function () {
