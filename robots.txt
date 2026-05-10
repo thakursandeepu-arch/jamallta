@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+Disallow: /admin/
+Disallow: /employee/
+Disallow: /customer/
+Disallow: /login/
+Disallow: /auth-functions/
+Disallow: /customer/functions/
+Disallow: /email-functions/
+
+Sitemap: https://jamallta.com/sitemap.xml
