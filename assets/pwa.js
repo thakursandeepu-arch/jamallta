@@ -76,6 +76,10 @@
   window.addEventListener("load", function () {
     navigator.serviceWorker.register("/service-worker.js")
       .then(function () {
+        if (isAndroid) {
+          createInstallButton("apk");
+          return;
+        }
         if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
           createInstallButton("ios");
         }
