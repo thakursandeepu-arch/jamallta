@@ -23,13 +23,7 @@ const updateAuthUserHttpUrl = "https://us-central1-jamallta-films-2-27d2b.cloudf
 
 
 waitForAuthReady().then(() => {
-  const redirectIfLoggedOut = (user) => {
-    if (!user && !auth.currentUser) {
-      window.top.location.replace("/login/login.html");
-    }
-  };
-  redirectIfLoggedOut(auth.currentUser);
-  onAuthStateChanged(auth, redirectIfLoggedOut);
+  onAuthStateChanged(auth, () => {});
 });
 
 const modalBg = document.getElementById("modalBg");

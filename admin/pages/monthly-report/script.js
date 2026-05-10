@@ -651,13 +651,8 @@ window.addEventListener('DOMContentLoaded', ()=>{
 
 waitForAuthReady().then(() => {
   const loadWhenLoggedIn = (user) => {
-    if (!user && !auth.currentUser) {
-      window.top.location.replace("/login/login.html");
-      return;
-    }
     if (user && btnLoad) btnLoad.click();
   };
   loadWhenLoggedIn(auth.currentUser);
   onAuthStateChanged(auth, loadWhenLoggedIn);
 });
-

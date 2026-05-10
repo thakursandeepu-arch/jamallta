@@ -337,10 +337,6 @@ function startListeners() {
 
 waitForAuthReady().then(() => {
   const startWhenLoggedIn = (user) => {
-    if (!user && !auth.currentUser) {
-      window.top.location.replace("/login/login.html");
-      return;
-    }
     if (user) startListeners();
   };
   startWhenLoggedIn(auth.currentUser);
