@@ -1,7 +1,7 @@
 // employee-user.js  (FINAL SYNCED WITH billing.html + clients.html)
 
 // --------------- FIREBASE SETUP ---------------
-import { auth, db, storage } from "./firebase-config.js";
+import { auth, db, storage, waitForAuthReady } from "./firebase-config.js";
 import {
   onAuthStateChanged,
   signOut,
@@ -652,7 +652,7 @@ if (punchOutBtn) {
 }
 
 // --------------- AUTH LISTENER ---------------
-onAuthStateChanged(auth, async (user) => {
+waitForAuthReady().then(() => onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "../login/login.html";
     return;
@@ -674,7 +674,7 @@ onAuthStateChanged(auth, async (user) => {
   startJobsListener();
   await preloadCustomerStudios(); // preload customers for filtering available projects
   loadAvailableProjects();
-});
+}));
 
 // --------------- EMPLOYEE INFO LOAD ---------------
 async function loadEmployeeInfo() {

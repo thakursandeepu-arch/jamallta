@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase-config.js";
+import { auth, db, waitForAuthReady } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import {
   collection,
@@ -1779,7 +1779,7 @@ function startJobsListener() {
   });
 }
 
-onAuthStateChanged(auth, async (user) => {
+waitForAuthReady().then(() => onAuthStateChanged(auth, async (user) => {
   if (!user) {
     window.location.href = "../login/login.html";
     return;
@@ -1791,7 +1791,7 @@ onAuthStateChanged(auth, async (user) => {
   bindChartFilters();
   bindCustomRange();
   startJobsListener();
-});
+}));
 
 if (refreshInfoBtn) {
   refreshInfoBtn.addEventListener("click", () => {

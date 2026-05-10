@@ -1,4 +1,4 @@
-import { app, auth, db } from "./firebase-config.js";
+import { app, auth, db, waitForAuthReady } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { collection, query, where, onSnapshot, getDocs } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-functions.js";
@@ -517,7 +517,7 @@ async function startPayment(amount, jobId) {
   }
 }
 
-onAuthStateChanged(auth, async (user) => {
+waitForAuthReady().then(() => onAuthStateChanged(auth, async (user) => {
   if (!user) return location.href = "/login/login.html";
 
   if (emailEl) emailEl.textContent = user.email || "-";
@@ -536,7 +536,7 @@ onAuthStateChanged(auth, async (user) => {
   } else if (user.phoneNumber) {
     await loadCustomer({ phone: user.phoneNumber });
   }
-});
+}));
 
 async function loadCustomer({ email, phone }) {
   if (!email && !phone) return;

@@ -1,4 +1,4 @@
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
 import {
   onAuthStateChanged,
   sendPasswordResetEmail,
@@ -22,10 +22,14 @@ import {
 const updateAuthUserHttpUrl = "https://us-central1-jamallta-films-2-27d2b.cloudfunctions.net/updateAuthUserHttp";
 
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    window.top.location.replace("/login/login.html");
-  }
+waitForAuthReady().then(() => {
+  const redirectIfLoggedOut = (user) => {
+    if (!user && !auth.currentUser) {
+      window.top.location.replace("/login/login.html");
+    }
+  };
+  redirectIfLoggedOut(auth.currentUser);
+  onAuthStateChanged(auth, redirectIfLoggedOut);
 });
 
 const modalBg = document.getElementById("modalBg");

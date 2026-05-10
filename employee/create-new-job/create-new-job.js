@@ -1,5 +1,5 @@
 ﻿// create-new-job.js (FINAL - payments payload includes studioName/customerName)
-import { auth, db } from "../firebase-config.js";
+import { auth, db, waitForAuthReady } from "../firebase-config.js";
 import {
   collection, addDoc, serverTimestamp, getDocs, query, where, limit, doc, runTransaction, orderBy
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
@@ -72,12 +72,12 @@ let studioItemsCache = [];
 let currentItems = [];
 
 // auth
-onAuthStateChanged(auth, (user) => {
+waitForAuthReady().then(() => onAuthStateChanged(auth, (user) => {
   if (user) {
     currentUserEmail = user.email || "";
     currentUserName = user.displayName || user.email || "";
   }
-});
+}));
 
 // helpers
 function showToast(msg, type="success") {

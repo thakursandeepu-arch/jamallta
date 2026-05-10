@@ -1,7 +1,7 @@
 // admin-auth.js
 // Admin Security Guard
 
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js?v=2";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import {
   collection,
@@ -75,7 +75,7 @@ async function setWelcomeName(user) {
   }
 }
 
-onAuthStateChanged(auth, async (user) => {
+async function checkAdminAccess(user) {
   try {
     if (!user) {
       redirectToLogin();
@@ -98,4 +98,11 @@ onAuthStateChanged(auth, async (user) => {
     console.error("[admin-auth] unexpected error", err);
     redirectToLogin();
   }
+}
+
+waitForAuthReady().then(() => {
+  checkAdminAccess(auth.currentUser);
+  onAuthStateChanged(auth, (user) => {
+    checkAdminAccess(user);
+  });
 });

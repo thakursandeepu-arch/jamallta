@@ -1,4 +1,4 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getApp, getApps, initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
 import {
   browserLocalPersistence,
   getAuth,
@@ -17,13 +17,18 @@ const firebaseConfig = {
   appId: "1:207209419416:web:53ff512e34553e9286b6ed"
 };
 
-const app  = initializeApp(firebaseConfig);
+const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence).catch(() => {});
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch(() => {});
+async function waitForAuthReady() {
+  await authPersistenceReady;
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
+}
 const db   = getFirestore(app);
 const functions = getFunctions(app, "us-central1");
 const storage = getStorage(app);
 
-export { app, auth, db, functions, storage };
-
+export { app, auth, db, functions, storage, waitForAuthReady };
 

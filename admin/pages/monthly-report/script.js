@@ -1,5 +1,5 @@
 // script.js (module) - Firestore v11 modular SDK + Chart.js
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
 import {
   collection, query, where, orderBy, getDocs, getDoc, doc
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
@@ -649,12 +649,15 @@ window.addEventListener('DOMContentLoaded', ()=>{
   }, 220); 
 });
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    window.top.location.replace("/login/login.html");
-    return;
-  }
-  if (btnLoad) btnLoad.click();
+waitForAuthReady().then(() => {
+  const loadWhenLoggedIn = (user) => {
+    if (!user && !auth.currentUser) {
+      window.top.location.replace("/login/login.html");
+      return;
+    }
+    if (user && btnLoad) btnLoad.click();
+  };
+  loadWhenLoggedIn(auth.currentUser);
+  onAuthStateChanged(auth, loadWhenLoggedIn);
 });
-
 

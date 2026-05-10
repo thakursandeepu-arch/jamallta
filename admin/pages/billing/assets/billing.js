@@ -1,4 +1,4 @@
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
 import {
   collection,
   onSnapshot,
@@ -335,12 +335,16 @@ function startListeners() {
   });
 }
 
-onAuthStateChanged(auth, (user) => {
-  if (!user) {
-    window.top.location.replace("/login/login.html");
-    return;
-  }
-  startListeners();
+waitForAuthReady().then(() => {
+  const startWhenLoggedIn = (user) => {
+    if (!user && !auth.currentUser) {
+      window.top.location.replace("/login/login.html");
+      return;
+    }
+    if (user) startListeners();
+  };
+  startWhenLoggedIn(auth.currentUser);
+  onAuthStateChanged(auth, startWhenLoggedIn);
 });
 
 /* =====================================================
