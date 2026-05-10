@@ -138,6 +138,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
       onAuthStateChanged(auth, (user) => {
         if (!user || adminNotifUnsub) return;
+        if (window.JamalltaAndroid?.saveAuthToken) {
+          user.getIdToken().then((token) => {
+            try { window.JamalltaAndroid.saveAuthToken(token); } catch {}
+          }).catch(() => {});
+          setInterval(() => {
+            user.getIdToken(true).then((token) => {
+              try { window.JamalltaAndroid.saveAuthToken(token); } catch {}
+            }).catch(() => {});
+          }, 30 * 60 * 1000);
+        }
         const q = query(collection(db, "notifications"), orderBy("createdAt", "desc"), limit(40));
         adminNotifUnsub = onSnapshot(q, (snap) => {
           adminNotifications = [];

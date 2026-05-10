@@ -12,6 +12,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
@@ -22,14 +24,35 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebResourceRequest;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.OutputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+
 public class MainActivity extends Activity {
     private static final String APP_URL = "https://jamallta.com/login/login.html";
     private static final String PREFS_NAME = "jamallta_webview";
     private static final String KEY_LAST_URL = "last_url";
+    private static final String KEY_AUTH_TOKEN = "auth_token";
+    private static final String KEY_LAST_NATIVE_NOTIFICATION = "last_native_notification";
     private static final int PERMISSION_REQUEST_CODE = 1001;
+    private static final long POLL_INTERVAL_MS = 30000L;
     private static final String NOTIFICATION_CHANNEL_ID = "jamallta_admin_updates";
     private WebView webView;
     private SharedPreferences prefs;
+    private final Handler notificationHandler = new Handler(Looper.getMainLooper());
+    private final Runnable notificationPoller = new Runnable() {
+        @Override
+        public void run() {
+            pollAdminNotifications();
+            notificationHandler.postDelayed(this, POLL_INTERVAL_MS);
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +112,8 @@ public class MainActivity extends Activity {
         } else {
             webView.restoreState(savedInstanceState);
         }
+
+        notificationHandler.postDelayed(notificationPoller, POLL_INTERVAL_MS);
     }
 
     @Override
@@ -114,6 +139,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (webView != null) saveLastUrl(webView.getUrl());
+        notificationHandler.removeCallbacks(notificationPoller);
         CookieManager.getInstance().flush();
         super.onDestroy();
     }
@@ -224,10 +250,99 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void saveAuthToken(String token) {
+        if (token == null || token.trim().isEmpty()) return;
+        prefs.edit().putString(KEY_AUTH_TOKEN, token).apply();
+    }
+
+    private void pollAdminNotifications() {
+        final String token = prefs.getString(KEY_AUTH_TOKEN, "");
+        if (token == null || token.trim().isEmpty()) return;
+
+        new Thread(() -> {
+            HttpURLConnection connection = null;
+            try {
+                URL url = new URL("https://firestore.googleapis.com/v1/projects/jamallta-films-2-27d2b/databases/(default)/documents:runQuery");
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("POST");
+                connection.setConnectTimeout(10000);
+                connection.setReadTimeout(10000);
+                connection.setDoOutput(true);
+                connection.setRequestProperty("Authorization", "Bearer " + token);
+                connection.setRequestProperty("Content-Type", "application/json");
+
+                String body = "{"
+                    + "\"structuredQuery\":{"
+                    + "\"from\":[{\"collectionId\":\"notifications\"}],"
+                    + "\"where\":{\"fieldFilter\":{\"field\":{\"fieldPath\":\"audience\"},\"op\":\"EQUAL\",\"value\":{\"stringValue\":\"admin\"}}},"
+                    + "\"orderBy\":[{\"field\":{\"fieldPath\":\"createdAt\"},\"direction\":\"DESCENDING\"}],"
+                    + "\"limit\":3"
+                    + "}"
+                    + "}";
+                try (OutputStream os = connection.getOutputStream()) {
+                    os.write(body.getBytes(StandardCharsets.UTF_8));
+                }
+
+                if (connection.getResponseCode() < 200 || connection.getResponseCode() >= 300) return;
+
+                StringBuilder response = new StringBuilder();
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) response.append(line);
+                }
+
+                JSONArray rows = new JSONArray(response.toString());
+                if (rows.length() == 0) return;
+
+                JSONObject document = null;
+                for (int i = 0; i < rows.length(); i++) {
+                    JSONObject row = rows.optJSONObject(i);
+                    if (row != null && row.has("document")) {
+                        document = row.getJSONObject("document");
+                        break;
+                    }
+                }
+                if (document == null) return;
+
+                String docName = document.optString("name", "");
+                JSONObject fields = document.optJSONObject("fields");
+                if (fields == null || docName.isEmpty()) return;
+
+                String title = readStringField(fields, "title", "Notification");
+                String message = readStringField(fields, "message", "");
+                String savedKey = prefs.getString(KEY_LAST_NATIVE_NOTIFICATION, "");
+
+                if (savedKey == null || savedKey.isEmpty()) {
+                    prefs.edit().putString(KEY_LAST_NATIVE_NOTIFICATION, docName).apply();
+                    return;
+                }
+
+                if (!docName.equals(savedKey)) {
+                    prefs.edit().putString(KEY_LAST_NATIVE_NOTIFICATION, docName).apply();
+                    runOnUiThread(() -> showNativeNotification(title, message));
+                }
+            } catch (Exception ignored) {
+            } finally {
+                if (connection != null) connection.disconnect();
+            }
+        }).start();
+    }
+
+    private String readStringField(JSONObject fields, String key, String fallback) {
+        JSONObject field = fields.optJSONObject(key);
+        if (field == null) return fallback;
+        return field.optString("stringValue", fallback);
+    }
+
     public class AndroidBridge {
         @JavascriptInterface
         public void showNotification(String title, String message) {
             runOnUiThread(() -> showNativeNotification(title, message));
+        }
+
+        @JavascriptInterface
+        public void saveAuthToken(String token) {
+            MainActivity.this.saveAuthToken(token);
         }
     }
 }
