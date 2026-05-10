@@ -2,6 +2,11 @@ package com.jamallta.films;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -9,6 +14,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
@@ -21,6 +27,7 @@ public class MainActivity extends Activity {
     private static final String PREFS_NAME = "jamallta_webview";
     private static final String KEY_LAST_URL = "last_url";
     private static final int PERMISSION_REQUEST_CODE = 1001;
+    private static final String NOTIFICATION_CHANNEL_ID = "jamallta_admin_updates";
     private WebView webView;
     private SharedPreferences prefs;
 
@@ -33,6 +40,7 @@ public class MainActivity extends Activity {
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        createNotificationChannel();
         requestAppPermissions();
 
         WebSettings settings = webView.getSettings();
@@ -46,6 +54,7 @@ public class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(false);
         settings.setLoadWithOverviewMode(true);
         settings.setUseWideViewPort(true);
+        webView.addJavascriptInterface(new AndroidBridge(), "JamalltaAndroid");
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -136,6 +145,7 @@ public class MainActivity extends Activity {
         String[] permissions;
         if (Build.VERSION.SDK_INT >= 33) {
             permissions = new String[] {
+                Manifest.permission.POST_NOTIFICATIONS,
                 Manifest.permission.CAMERA,
                 Manifest.permission.RECORD_AUDIO,
                 Manifest.permission.READ_MEDIA_IMAGES,
@@ -161,6 +171,63 @@ public class MainActivity extends Activity {
                 requestPermissions(permissions, PERMISSION_REQUEST_CODE);
                 return;
             }
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        NotificationChannel channel = new NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            "Admin Updates",
+            NotificationManager.IMPORTANCE_HIGH
+        );
+        channel.setDescription("Punch in, punch out, and admin update alerts");
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) manager.createNotificationChannel(channel);
+    }
+
+    private void showNativeNotification(String title, String message) {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, PERMISSION_REQUEST_CODE);
+            return;
+        }
+
+        Intent intent = new Intent(this, MainActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0
+        );
+
+        android.app.Notification.Builder builder = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? new android.app.Notification.Builder(this, NOTIFICATION_CHANNEL_ID)
+            : new android.app.Notification.Builder(this);
+
+        builder
+            .setSmallIcon(R.drawable.app_icon)
+            .setContentTitle(title == null || title.trim().isEmpty() ? "Jamallta" : title)
+            .setContentText(message == null ? "" : message)
+            .setStyle(new android.app.Notification.BigTextStyle().bigText(message == null ? "" : message))
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent);
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            builder.setPriority(android.app.Notification.PRIORITY_HIGH);
+        }
+
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) {
+            manager.notify((int) (System.currentTimeMillis() % Integer.MAX_VALUE), builder.build());
+        }
+    }
+
+    public class AndroidBridge {
+        @JavascriptInterface
+        public void showNotification(String title, String message) {
+            runOnUiThread(() -> showNativeNotification(title, message));
         }
     }
 }

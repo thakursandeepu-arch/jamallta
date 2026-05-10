@@ -97,6 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function showAdminBrowserNotification(title, message) {
+    if (window.JamalltaAndroid?.showNotification) {
+      try {
+        window.JamalltaAndroid.showNotification(title || "Notification", message || "");
+        return;
+      } catch {}
+    }
     if (!("Notification" in window)) return;
     if (Notification.permission !== "granted") return;
     try {
