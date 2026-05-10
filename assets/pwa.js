@@ -2,7 +2,7 @@
   var isMobileInstallDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (!isMobileInstallDevice) return;
 
-  var ANDROID_APK_URL = "https://github.com/thakursandeepu-arch/jamallta/releases/download/android-latest/Jamallta-debug.apk";
+  var ANDROID_APK_URL = "/dist/Jamallta-debug.apk";
   var isAndroid = /Android/i.test(navigator.userAgent);
   var isAndroidWebView = isAndroid && /; wv\)|Version\/[\d.]+ Chrome\/[\d.]+ Mobile Safari/i.test(navigator.userAgent);
   var deferredInstallPrompt = null;
