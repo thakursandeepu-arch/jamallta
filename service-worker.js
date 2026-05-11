@@ -1,4 +1,4 @@
-const CACHE_NAME = "jamallta-pwa-v22";
+const CACHE_NAME = "jamallta-pwa-v23";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -21,8 +21,8 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/assets/pwa.js",
   "/assets/app-session.js",
-  "/assets/icons/icon-192.png",
-  "/assets/icons/icon-512.png"
+  "/assets/brand/jamallta-films-logo-512.png",
+  "/assets/brand/jamallta-films-logo-192.png"
 ];
 
 self.addEventListener("install", (event) => {

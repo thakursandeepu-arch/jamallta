@@ -110,14 +110,14 @@ document.addEventListener("DOMContentLoaded", () => {
         const reg = await navigator.serviceWorker.ready;
         await reg.showNotification(title, {
           body: message,
-          icon: "/favicon.ico",
+          icon: "/assets/brand/jamallta-films-logo.png",
           tag: `admin-${Date.now()}`,
         });
         return;
       }
     } catch {}
     try {
-      new Notification(title, { body: message, icon: "/favicon.ico" });
+      new Notification(title, { body: message, icon: "/assets/brand/jamallta-films-logo.png" });
     } catch {}
   }
 

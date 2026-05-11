@@ -1133,7 +1133,7 @@ function buildSalarySlipHtml({ name, empId, baseSalary, rows, nextHolidayText })
     <div class="sheet">
       <div class="banner">
         <div>
-          <div class="brand">Jaamalta Films</div>
+          <div class="brand">Jamallta Films</div>
           <div class="muted" style="color:rgba(255,255,255,.8)">Salary Slip (All Months)</div>
         </div>
         <div class="badge">Generated: ${genDate}</div>
@@ -1176,7 +1176,7 @@ function buildSalarySlipHtml({ name, empId, baseSalary, rows, nextHolidayText })
       </div>
       <div class="footer">Note: Payable salary is calculated on 26 working days, 9 hours/day, 3 paid leaves, remaining leaves half-paid.</div>
     </div>
-    <div class="watermark">Jaamalta Films • Salary Slip</div>
+    <div class="watermark">Jamallta Films • Salary Slip</div>
   </body>
   </html>`;
 }

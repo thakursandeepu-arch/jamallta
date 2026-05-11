@@ -8,5 +8,9 @@ Disallow: /login/
 Disallow: /auth-functions/
 Disallow: /customer/functions/
 Disallow: /email-functions/
+Disallow: /scripts/
+Disallow: /android-app/
+Disallow: /.git/
+Disallow: /.instagram.html
 
 Sitemap: https://jamallta.com/sitemap.xml

@@ -1,4 +1,4 @@
-﻿:root{
+:root{
   --bg:#0a0f1e;
   --panel:#0b1224;
   --panel-2:#0f1734;
@@ -38,7 +38,7 @@ body{
 }
 
 .logo{ display:flex; align-items:center; gap:10px; }
-.logo-icon{ color:var(--accent); font-size:20px; }
+
 .logo-text{ font-size:22px; font-weight:800; letter-spacing:.3px; }
 
 .user-info{
