@@ -41,7 +41,7 @@ body{
 .logo-icon{
   width:42px;
   height:42px;
-  border-radius:50%;
+  border-radius:12px;
   object-fit:cover;
   border:1px solid rgba(255,216,107,.38);
   box-shadow:0 10px 22px rgba(0,0,0,.28);
