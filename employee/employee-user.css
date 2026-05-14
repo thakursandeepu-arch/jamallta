@@ -38,6 +38,15 @@ body{
 }
 
 .logo{ display:flex; align-items:center; gap:10px; }
+.logo-icon{
+  width:42px;
+  height:42px;
+  border-radius:12px;
+  object-fit:cover;
+  border:1px solid rgba(255,216,107,.38);
+  box-shadow:0 10px 22px rgba(0,0,0,.28);
+  background:#fffdf8;
+}
 
 .logo-text{ font-size:22px; font-weight:800; letter-spacing:.3px; }
 

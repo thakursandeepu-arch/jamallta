@@ -31,13 +31,11 @@ body{
 .logo-icon{
   width:40px;
   height:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
   border-radius:12px;
-  background:linear-gradient(180deg,#123a6b,#0d2b52);
-  color:#ffd86b;
-  font-weight:800;
+  object-fit:cover;
+  background:#fffdf8;
+  border:1px solid rgba(255,216,107,.38);
+  box-shadow:0 10px 22px rgba(0,0,0,.22);
 }
 .logo-text{ font-size:18px; font-weight:800; letter-spacing:.3px; }
 .logo-sub{ font-size:12px; color:#a9b6ff; }

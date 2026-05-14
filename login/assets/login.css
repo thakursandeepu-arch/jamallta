@@ -63,6 +63,16 @@ body {
   font-size: 22px;
 }
 
+.login-logo {
+  width: 86px;
+  height: 86px;
+  object-fit: cover;
+  border-radius: 18px;
+  margin: 0 auto 16px;
+  border: 1px solid rgba(184, 134, 11, 0.28);
+  box-shadow: 0 14px 30px rgba(92, 65, 0, 0.18);
+}
+
 .input-group {
   margin-bottom: 14px;
 }

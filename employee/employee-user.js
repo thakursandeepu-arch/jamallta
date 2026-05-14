@@ -450,13 +450,13 @@ async function showBrowserNotification(title, body) {
     if (reg) {
       reg.showNotification(title, {
         body,
-        icon: "/assets/brand/jamallta-films-logo.png",
+        icon: "/assets/brand/jamallta-films-luxury-logo.png",
         tag: "employee-notif",
       });
       return;
     }
   }
-  new Notification(title, { body, icon: "/assets/brand/jamallta-films-logo.png" });
+  new Notification(title, { body, icon: "/assets/brand/jamallta-films-luxury-logo.png" });
 }
 
 function listenNotifications() {

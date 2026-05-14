@@ -25,7 +25,18 @@ body{
   cursor:pointer;
 }
 .title-wrap{
-  text-align:center;
+  text-align:left;
+  display:flex;
+  align-items:center;
+  gap:9px;
+}
+.chat-logo{
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  object-fit:cover;
+  border:1px solid rgba(255,255,255,.42);
+  background:#fffdf8;
 }
 .title{
   font-weight:700;

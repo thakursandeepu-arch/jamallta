@@ -1,9 +1,11 @@
-const CACHE_NAME = "jamallta-pwa-v23";
+const CACHE_NAME = "jamallta-pwa-v25";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/offline.html",
   "/packages.html",
+  "/himachal-video-editor.html",
+  "/pahadi-video-editor.html",
   "/login/login.html",
   "/customer/customer-profile.html",
   "/customer/chat/customer-chet.html",
@@ -21,8 +23,10 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/assets/pwa.js",
   "/assets/app-session.js",
-  "/assets/brand/jamallta-films-logo-512.png",
-  "/assets/brand/jamallta-films-logo-192.png"
+  "/assets/brand/jamallta-films-luxury-logo-48.png",
+  "/assets/brand/jamallta-films-luxury-logo.png",
+  "/assets/brand/jamallta-films-luxury-logo-512.png",
+  "/assets/brand/jamallta-films-luxury-logo-192.png"
 ];
 
 self.addEventListener("install", (event) => {
