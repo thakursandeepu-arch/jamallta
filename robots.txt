@@ -13,4 +13,38 @@ Disallow: /android-app/
 Disallow: /.git/
 Disallow: /.instagram.html
 
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /admin/
+Disallow: /employee/
+Disallow: /customer/
+Disallow: /login/
+Disallow: /auth-functions/
+Disallow: /customer/functions/
+Disallow: /email-functions/
+Disallow: /scripts/
+Disallow: /android-app/
+Disallow: /.git/
+Disallow: /.instagram.html
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /admin/
+Disallow: /employee/
+Disallow: /customer/
+Disallow: /login/
+Disallow: /auth-functions/
+Disallow: /customer/functions/
+Disallow: /email-functions/
+Disallow: /scripts/
+Disallow: /android-app/
+Disallow: /.git/
+Disallow: /.instagram.html
+
 Sitemap: https://jamallta.com/sitemap.xml
