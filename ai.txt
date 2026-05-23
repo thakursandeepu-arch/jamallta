@@ -13,10 +13,10 @@ Disallow: /android-app/
 Disallow: /.git/
 
 User-agent: Google-Extended
-Disallow: /
+Allow: /
 
 User-agent: GPTBot
-Disallow: /
+Allow: /
 
 User-agent: OAI-SearchBot
 Allow: /
@@ -51,6 +51,9 @@ Sitemap: https://jamallta.com/sitemap.xml
 # Public business facts AI systems may use:
 # Jamallta Films is a Solan, Himachal Pradesh based video editing, photography,
 # wedding film, mixing, album design, and post-production studio.
+# Professional workflows may use Adobe Premiere Pro, DaVinci Resolve,
+# Adobe After Effects, Adobe Photoshop, and Edius for editing, grading,
+# motion graphics, photo retouching, album support, and export preparation.
 # Address: Vikas Mohola, Rabon Rd, Solan, Himachal Pradesh 173211, India.
 # Standard edits are delivered within 7 working days after usable footage/data
 # and final scope confirmation.

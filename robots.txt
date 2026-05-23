@@ -14,10 +14,10 @@ Disallow: /.git/
 Disallow: /.instagram.html
 
 User-agent: Google-Extended
-Disallow: /
+Allow: /
 
 User-agent: GPTBot
-Disallow: /
+Allow: /
 
 User-agent: OAI-SearchBot
 Allow: /
