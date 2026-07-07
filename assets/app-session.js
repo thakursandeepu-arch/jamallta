@@ -22,8 +22,19 @@ async function redirectLoggedInUser(user) {
   const isAdminEmail = isAllowedAdminEmail(email);
 
   if (isAdminEmail) {
-    window.location.replace("/admin/admin.html");
-    return;
+    try {
+      const adminSnap = await getDoc(doc(db, "users", user.uid));
+      const adminRole = (adminSnap.data()?.role || "").toLowerCase();
+      if (adminSnap.exists() && adminRole.includes("admin")) {
+        window.location.replace("/admin/admin.html");
+        return;
+      }
+      const adminByEmail = await getDocs(query(collection(db, "users"), where("email", "==", email)));
+      if (adminByEmail.docs.some((d) => String(d.data()?.role || "").toLowerCase().includes("admin"))) {
+        window.location.replace("/admin/admin.html");
+        return;
+      }
+    } catch {}
   }
 
   try {

@@ -1,3 +1,6 @@
+// admin-auth.js
+// Admin Security Guard
+
 import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js?v=2";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import {
@@ -10,79 +13,45 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
+const ADMIN_SESSION_KEY = "jamallta_admin_session";
+const ADMIN_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
 const isFramedAdminPage = window.top && window.top !== window.self;
-const RECENT_LOGIN_KEY = "jamallta_recent_login";
 
-function revealPage() {
-  delete document.documentElement.dataset.authPending;
-  document.documentElement.dataset.adminAuth = "ok";
-  try { sessionStorage.removeItem(RECENT_LOGIN_KEY); } catch (_) {}
-}
-
-function currentTarget() {
-  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
-}
-
-function redirectTop(url) {
-  if (isFramedAdminPage) {
-    window.top.location.replace(url);
-    return;
-  }
-  window.location.replace(url);
-}
-
-function redirectToLogin() {
-  redirectTop(`/login/login.html?next=${encodeURIComponent(currentTarget())}`);
-}
-
-function parentAdminSessionOk() {
-  if (!isFramedAdminPage) return false;
+function readAdminSession(user) {
   try {
-    return window.parent?.document?.documentElement?.dataset?.adminAuth === "ok";
-  } catch (_) {
+    const cached = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || localStorage.getItem(ADMIN_SESSION_KEY) || "{}");
+    const email = (user?.email || "").toLowerCase();
+    return cached?.uid === user?.uid &&
+      cached?.email === email &&
+      Date.now() - Number(cached?.savedAt || 0) < ADMIN_SESSION_MAX_AGE_MS;
+  } catch {
     return false;
   }
 }
 
-function recentLoginActive() {
+function saveAdminSession(user) {
   try {
-    const value = Number(sessionStorage.getItem(RECENT_LOGIN_KEY) || 0);
-    return value > 0 && Date.now() - value < 30000;
-  } catch (_) {
-    return false;
-  }
-}
-
-function waitForSignedInUser(timeoutMs = 10000) {
-  return new Promise((resolve) => {
-    if (auth.currentUser) {
-      resolve(auth.currentUser);
-      return;
-    }
-
-    let settled = false;
-    let unsubscribe = null;
-    const timeout = setTimeout(() => finish(null), timeoutMs);
-
-    function finish(user) {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timeout);
-      if (unsubscribe) unsubscribe();
-      resolve(user || auth.currentUser || null);
-    }
-
-    unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      if (authUser) finish(authUser);
+    const payload = JSON.stringify({
+      uid: user.uid,
+      email: (user.email || "").toLowerCase(),
+      savedAt: Date.now()
     });
-  });
+    sessionStorage.setItem(ADMIN_SESSION_KEY, payload);
+    localStorage.setItem(ADMIN_SESSION_KEY, payload);
+  } catch {}
+}
+
+function clearAdminSession() {
+  try {
+    sessionStorage.removeItem(ADMIN_SESSION_KEY);
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  } catch {}
 }
 
 function markAdminAuthBlocked(reason) {
   console.warn(`[admin-auth] access not confirmed: ${reason}`);
   document.documentElement.dataset.adminAuth = "blocked";
-  delete document.documentElement.dataset.authPending;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => markAdminAuthBlocked(reason), { once: true });
     return;
@@ -95,7 +64,7 @@ function markAdminAuthBlocked(reason) {
 
 async function hasAdminRole(user) {
   const email = (user.email || "").toLowerCase();
-  if (isAllowedAdminEmail(email)) return true;
+  if (!isAllowedAdminEmail(email)) return false;
 
   const roleIncludesAdmin = (snap) => {
     if (!snap?.exists?.()) return false;
@@ -145,46 +114,31 @@ async function setWelcomeName(user) {
 
 async function checkAdminAccess(user) {
   try {
-    let activeUser = user || auth.currentUser;
-
-    if (parentAdminSessionOk()) {
-      revealPage();
-      if (activeUser) {
-        if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", () => setWelcomeName(activeUser), { once: true });
-        } else {
-          setWelcomeName(activeUser);
-        }
-      }
-      return;
-    }
-
-    if (!activeUser && recentLoginActive()) {
-      activeUser = await waitForSignedInUser();
-    }
-
-    if (!activeUser) {
+    if (!user) {
+      clearAdminSession();
       markAdminAuthBlocked("not signed in");
-      if (!isFramedAdminPage) {
-        redirectToLogin();
-      }
       return;
     }
 
-    const isAdmin = await hasAdminRole(activeUser);
+    if (isFramedAdminPage && (readAdminSession(user) || isAllowedAdminEmail(user.email))) {
+      saveAdminSession(user);
+      return;
+    }
+
+    const isAdmin = await hasAdminRole(user);
     if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
+      clearAdminSession();
       markAdminAuthBlocked("not admin");
-      redirectTop("/");
       return;
     }
 
-    revealPage();
+    saveAdminSession(user);
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setWelcomeName(activeUser), { once: true });
+      document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
     } else {
-      setWelcomeName(activeUser);
+      setWelcomeName(user);
     }
   } catch (err) {
     console.error("[admin-auth] unexpected error", err);

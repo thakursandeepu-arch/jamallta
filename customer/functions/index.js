@@ -379,27 +379,6 @@ async function isAdminCaller(context) {
   return !byEmail.empty && byEmail.docs.some(d => normEmail(d.data()?.role).includes("admin"));
 }
 
-async function isAdminAuthContext(authContext = {}) {
-  const email = normEmail(authContext.email);
-  if (ADMIN_EMAILS.includes(email)) return true;
-
-  const uid = authContext.uid || "";
-  if (uid) {
-    const userDoc = await db.doc(`users/${uid}`).get();
-    if (userDoc.exists && normEmail(userDoc.data()?.role).includes("admin")) return true;
-  }
-
-  if (email) {
-    const byEmail = await db.collection("users")
-      .where("email", "==", email)
-      .limit(1)
-      .get();
-    return !byEmail.empty && byEmail.docs.some(d => normEmail(d.data()?.role).includes("admin"));
-  }
-
-  return false;
-}
-
 function getRazorpayConfig() {
   const cfg = functions.config()?.razorpay || {};
   const keyId = process.env.RAZORPAY_KEY_ID || cfg.key_id || "";
@@ -410,19 +389,12 @@ function getRazorpayConfig() {
   return { keyId, keySecret };
 }
 
-let razorpayConfigCache = null;
-let razorpayClient = null;
-
-function getRazorpayClient() {
-  if (!razorpayClient) {
-    razorpayConfigCache = getRazorpayConfig();
-    razorpayClient = new Razorpay({
-      key_id: razorpayConfigCache.keyId,
-      key_secret: razorpayConfigCache.keySecret
-    });
-  }
-  return { razorpay: razorpayClient, razorpayConfig: razorpayConfigCache };
-}
+// Initialize Razorpay from environment/runtime config.
+const razorpayConfig = getRazorpayConfig();
+const razorpay = new Razorpay({
+  key_id: razorpayConfig.keyId,
+  key_secret: razorpayConfig.keySecret
+});
 
 const ALLOWED_ORIGINS = [
   "https://jamallta.com",
@@ -461,119 +433,34 @@ async function requireAuth(req) {
   return decoded;
 }
 
-function amountOrThrow(amount) {
-  const value = Number(amount);
-  if (!Number.isFinite(value) || value <= 0 || value > 1000000) {
-    throw new functions.https.HttpsError("invalid-argument", "Valid amount is required");
-  }
-  return value;
-}
-
-function httpStatusFor(error) {
-  const code = error?.code || error?.message || "";
-  if (code === "unauthenticated") return 401;
-  if (code === "permission-denied") return 403;
-  if (code === "invalid-argument") return 400;
-  return 500;
-}
-
-async function findCustomerForAuth(authUser = {}) {
-  const uid = authUser.uid || "";
-  const email = normEmail(authUser.email);
-  const phoneE164 = (authUser.phone_number || authUser.phoneNumber || "").toString().trim();
-  const phone = normPhone(phoneE164);
-
-  if (uid) {
-    const byId = await db.doc(`customers/${uid}`).get();
-    if (byId.exists) return { id: byId.id, data: byId.data() || {} };
-  }
-  if (email) {
-    const byEmail = await db.collection("customers").where("email", "==", email).limit(1).get();
-    if (!byEmail.empty) return { id: byEmail.docs[0].id, data: byEmail.docs[0].data() || {} };
-  }
-  if (phoneE164) {
-    const byPhoneE164 = await db.collection("customers").where("phoneE164", "==", phoneE164).limit(1).get();
-    if (!byPhoneE164.empty) return { id: byPhoneE164.docs[0].id, data: byPhoneE164.docs[0].data() || {} };
-  }
-  if (phone) {
-    const byPhone = await db.collection("customers").where("phone", "==", phone).limit(1).get();
-    if (!byPhone.empty) return { id: byPhone.docs[0].id, data: byPhone.docs[0].data() || {} };
-  }
-
-  return null;
-}
-
-function customerNames(customer = {}) {
-  return new Set([customer.studioName, customer.customerName].map(normStudio).filter(Boolean));
-}
-
-async function assertCustomerAccess(authUser = {}, { jobId = "", studioName = "" } = {}) {
-  const customer = await findCustomerForAuth(authUser);
-  if (!customer) {
-    throw new functions.https.HttpsError("permission-denied", "Customer profile not found");
-  }
-
-  const names = customerNames(customer.data);
-  let canonicalStudioName = customer.data.studioName || customer.data.customerName || studioName || "";
-
-  if (jobId) {
-    const jobSnap = await db.doc(`jobs/${jobId}`).get();
-    if (!jobSnap.exists) {
-      throw new functions.https.HttpsError("permission-denied", "Job not found");
-    }
-
-    const job = jobSnap.data() || {};
-    const jobMatches =
-      job.customerId === customer.id ||
-      job.customerId === authUser.uid ||
-      normEmail(job.customerEmail) === normEmail(authUser.email) ||
-      names.has(normStudio(job.studioName)) ||
-      names.has(normStudio(job.customerName));
-
-    if (!jobMatches) {
-      throw new functions.https.HttpsError("permission-denied", "Payment is not allowed for this job");
-    }
-
-    canonicalStudioName = job.studioName || job.customerName || canonicalStudioName;
-    return { customerId: customer.id, customer: customer.data, studioName: canonicalStudioName, job };
-  }
-
-  if (studioName && names.size && !names.has(normStudio(studioName))) {
-    throw new functions.https.HttpsError("permission-denied", "Payment is not allowed for this studio");
-  }
-
-  return { customerId: customer.id, customer: customer.data, studioName: canonicalStudioName };
-}
-
 // ✅ OPTION 1: CALLABLE FUNCTION (RECOMMENDED - No CORS)
 exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
   try {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "Login required");
+    // Get data from request
+    const { amount, jobId, studioName, customerEmail } = data;
+    
+    // Validate
+    if (!amount || amount <= 0) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Valid amount is required"
+      );
     }
 
-    const { amount, jobId, studioName } = data || {};
-    const amountValue = amountOrThrow(amount);
-    const access = await assertCustomerAccess({
-      uid: context.auth.uid,
-      email: context.auth.token?.email || "",
-      phone_number: context.auth.token?.phone_number || ""
-    }, { jobId, studioName });
-
-    const { razorpay, razorpayConfig } = getRazorpayClient();
+    // Create Razorpay order
     const order = await razorpay.orders.create({
-      amount: Math.round(amountValue * 100),
+      amount: Math.round(amount * 100), // Convert to paise
       currency: "INR",
-      receipt: `receipt_${Date.now()}_${access.studioName || ""}`,
+      receipt: `receipt_${Date.now()}_${studioName || ""}`,
       notes: {
         jobId: jobId || "",
-        studioName: access.studioName || "",
-        customerId: access.customerId || "",
-        customerEmail: context.auth.token?.email || ""
+        studioName: studioName || "",
+        customerEmail: customerEmail || ""
       },
       payment_capture: 1
     });
 
+    // Return data to client
     return {
       success: true,
       orderId: order.id,
@@ -584,7 +471,6 @@ exports.createRazorpayOrder = functions.https.onCall(async (data, context) => {
 
   } catch (error) {
     console.error("Razorpay order error:", error);
-    if (error instanceof functions.https.HttpsError) throw error;
     throw new functions.https.HttpsError(
       "internal",
       error.message || "Failed to create order"
@@ -607,19 +493,23 @@ exports.createRazorpayOrderHttp = functions.https.onRequest((req, res) => {
     try {
       const authUser = await requireAuth(req);
       const { amount, jobId, studioName } = req.body || {};
-      const amountValue = amountOrThrow(amount);
-      const access = await assertCustomerAccess(authUser, { jobId, studioName });
+      
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Valid amount required"
+        });
+      }
 
-      const { razorpay, razorpayConfig } = getRazorpayClient();
       const order = await razorpay.orders.create({
-        amount: Math.round(amountValue * 100),
+        amount: amount * 100,
         currency: "INR",
         receipt: `receipt_${Date.now()}`,
         payment_capture: 1,
         notes: {
           jobId: jobId || "",
-          studioName: access.studioName || "",
-          customerId: access.customerId || "",
+          studioName: studioName || "",
+          customerId: authUser?.uid || "",
           customerEmail: authUser?.email || ""
         }
       });
@@ -635,7 +525,7 @@ exports.createRazorpayOrderHttp = functions.https.onRequest((req, res) => {
     } catch (error) {
       console.error("Error:", error);
       const msg = error?.message === "unauthenticated" ? "Login required" : (error?.message || "Server error");
-      res.status(httpStatusFor(error)).json({
+      res.status(500).json({
         success: false,
         error: msg
       });
@@ -657,11 +547,8 @@ exports.verifyRazorpayPaymentHttp = functions.https.onRequest((req, res) => {
       if (!orderId || !paymentId || !signature) {
         return res.status(400).json({ success: false, error: "Missing payment fields" });
       }
-      const amountValue = amountOrThrow(amount);
-      const access = await assertCustomerAccess(authUser, { jobId, studioName });
 
       const body = `${orderId}|${paymentId}`;
-      const { razorpayConfig } = getRazorpayClient();
       const expected = crypto
         .createHmac("sha256", razorpayConfig.keySecret)
         .update(body)
@@ -672,10 +559,10 @@ exports.verifyRazorpayPaymentHttp = functions.https.onRequest((req, res) => {
       }
 
       await db.collection("payments").add({
-        amount: amountValue,
+        amount: Number(amount || 0),
         jobId: jobId || "",
-        studioName: access.studioName || "",
-        customerId: access.customerId || "",
+        studioName: studioName || "",
+        customerId: authUser?.uid || "",
         customerEmail: authUser?.email || "",
         paymentId,
         orderId,
@@ -687,7 +574,7 @@ exports.verifyRazorpayPaymentHttp = functions.https.onRequest((req, res) => {
     } catch (error) {
       console.error("verifyRazorpayPaymentHttp error:", error);
       const msg = error?.message === "unauthenticated" ? "Login required" : (error?.message || "Server error");
-      res.status(httpStatusFor(error)).json({ success: false, error: msg });
+      res.status(500).json({ success: false, error: msg });
     }
   })();
 });
@@ -890,14 +777,29 @@ async function updateAuthUserCore(data, authContext) {
     throw new functions.https.HttpsError("unauthenticated", "Login required");
   }
 
-  if (!(await isAdminAuthContext(authContext))) {
+  const callerUid = authContext.uid;
+  let isAdmin = false;
+  try {
+    const adminDoc = await db.doc(`users/${callerUid}`).get();
+    if (adminDoc.exists) isAdmin = true;
+    if (!isAdmin && authContext.email) {
+      const adminQ = await db.collection("users")
+        .where("email", "==", authContext.email)
+        .limit(1)
+        .get();
+      if (!adminQ.empty) isAdmin = true;
+    }
+  } catch (_) {
+    // ignore
+  }
+
+  if (!isAdmin) {
     throw new functions.https.HttpsError("permission-denied", "Admin only");
   }
 
   const oldEmail = (data?.oldEmail || "").trim();
   const newEmail = (data?.newEmail || "").trim();
   const phone = (data?.phone || "").trim();
-  const phoneE164 = (data?.phoneE164 || "").trim();
   const displayName = (data?.displayName || "").trim();
 
   if (!oldEmail && !newEmail) {
@@ -926,23 +828,14 @@ async function updateAuthUserCore(data, authContext) {
 
   const updatePayload = {};
   if (newEmail && newEmail !== userRecord.email) updatePayload.email = newEmail;
-  if (phoneE164) updatePayload.phoneNumber = phoneE164;
-  else if (phone && phone.startsWith("+")) updatePayload.phoneNumber = phone;
+  if (phone) updatePayload.phoneNumber = phone;
   if (displayName) updatePayload.displayName = displayName;
 
-  if (Object.keys(updatePayload).length > 0) {
-    await auth.updateUser(userRecord.uid, updatePayload);
+  if (Object.keys(updatePayload).length === 0) {
+    return { success: true, skipped: true };
   }
 
-  await db.doc(`users/${userRecord.uid}`).set({
-    email: newEmail || oldEmail || userRecord.email || "",
-    phone,
-    phoneE164,
-    name: displayName || "",
-    studioName: displayName || "",
-    authSyncedAt: admin.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-
+  await auth.updateUser(userRecord.uid, updatePayload);
   return { success: true, created };
 }
 
@@ -961,200 +854,40 @@ exports.updateAuthUser = functions.https.onCall(async (data, context) => {
   }
 });
 
-function phoneCandidates(identifier = "") {
-  const raw = identifier.toString().trim();
-  const digits = normPhone(raw);
-  const candidates = new Set();
-  if (raw.startsWith("+")) candidates.add(raw.replace(/\s+/g, ""));
-  if (digits.length === 10) candidates.add(`+91${digits}`);
-  if (digits.startsWith("91") && digits.length === 12) candidates.add(`+${digits}`);
-  if (digits) candidates.add(digits);
-  return [...candidates];
-}
-
-async function lookupAccountByIdentifier(identifier = "") {
-  const raw = identifier.toString().trim();
-  const email = normEmail(raw);
-  const phones = phoneCandidates(raw);
-  const collections = ["users", "employees", "customers"];
-  const lookups = [];
-
-  if (email && email.includes("@")) {
-    lookups.push({ field: "email", value: email });
-    lookups.push({ field: "gmail", value: email });
+exports.updateAuthUserHttp = functions.https.onRequest((req, res) => {
+  setCors(req, res);
+  if (req.method === "OPTIONS") {
+    res.status(204).end();
+    return;
+  }
+  if (req.method !== "POST") {
+    res.status(405).json({ success: false, error: "Method not allowed" });
+    return;
   }
 
-  phones.forEach((phone) => {
-    lookups.push({ field: phone.startsWith("+") ? "phoneE164" : "phone", value: phone });
-  });
-
-  for (const collectionName of collections) {
-    for (const item of lookups) {
-      const snap = await db.collection(collectionName)
-        .where(item.field, "==", item.value)
-        .limit(1)
-        .get();
-      if (!snap.empty) {
-        const docSnap = snap.docs[0];
-        const data = docSnap.data() || {};
-        const foundEmail = normEmail(data.email || data.gmail || data.customerEmail);
-        if (foundEmail) {
-          return {
-            uid: docSnap.id,
-            email: foundEmail,
-            phone: data.phone || "",
-            phoneE164: data.phoneE164 || "",
-            displayName: data.fullName || data.name || data.studioName || data.customerName || "",
-            source: collectionName
-          };
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-exports.lookupLogin = functions.https.onCall(async (data) => {
-  const identifier = (data?.identifier || "").toString().trim();
-  if (!identifier || identifier.length > 120) {
-    throw new functions.https.HttpsError("invalid-argument", "Valid identifier is required");
-  }
-
-  const account = await lookupAccountByIdentifier(identifier);
-  if (!account) return { ok: false };
-  return {
-    ok: true,
-    email: account.email,
-    source: account.source
-  };
-});
-
-exports.setPasswordFromOtp = functions.https.onCall(async (data, context) => {
-  if (!context.auth?.uid) {
-    throw new functions.https.HttpsError("unauthenticated", "OTP login required");
-  }
-
-  const phoneNumber = (context.auth.token?.phone_number || "").toString().trim();
-  if (!phoneNumber) {
-    throw new functions.https.HttpsError("permission-denied", "Phone OTP session required");
-  }
-
-  const newPassword = (data?.newPassword || "").toString();
-  if (newPassword.length < 8) {
-    throw new functions.https.HttpsError("invalid-argument", "Password must be at least 8 characters");
-  }
-
-  const account = await lookupAccountByIdentifier(phoneNumber);
-  if (!account?.email) {
-    throw new functions.https.HttpsError("not-found", "No account is linked with this phone");
-  }
-
-  const userRecord = await auth.getUserByEmail(account.email);
-  await auth.updateUser(userRecord.uid, { password: newPassword });
-  return { success: true };
-});
-
-async function syncAuthRecord({ email, phone = "", phoneE164 = "", displayName = "", role = "customer" }) {
-  const cleanEmail = normEmail(email);
-  if (!cleanEmail) return { skipped: true, reason: "no-email" };
-
-  let userRecord = null;
-  let created = false;
-  try {
-    userRecord = await auth.getUserByEmail(cleanEmail);
-  } catch (error) {
-    if (error?.code !== "auth/user-not-found") throw error;
-    userRecord = await auth.createUser({
-      email: cleanEmail,
-      password: generateTempPassword(),
-      displayName: displayName || ""
-    });
-    created = true;
-  }
-
-  const updatePayload = {};
-  if (displayName && displayName !== userRecord.displayName) updatePayload.displayName = displayName;
-  if (phoneE164 && phoneE164 !== userRecord.phoneNumber) updatePayload.phoneNumber = phoneE164;
-  else if (phone && phone.startsWith("+") && phone !== userRecord.phoneNumber) updatePayload.phoneNumber = phone;
-
-  if (Object.keys(updatePayload).length) {
-    await auth.updateUser(userRecord.uid, updatePayload);
-  }
-
-  await db.doc(`users/${userRecord.uid}`).set({
-    email: cleanEmail,
-    phone,
-    phoneE164,
-    name: displayName || "",
-    studioName: role === "customer" ? displayName || "" : "",
-    role,
-    authSyncedAt: admin.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-
-  return { created, updated: !created };
-}
-
-exports.bulkSyncAuth = functions.https.onCall(async (data, context) => {
-  if (!(await isAdminAuthContext({
-    uid: context.auth?.uid || "",
-    email: context.auth?.token?.email || ""
-  }))) {
-    throw new functions.https.HttpsError("permission-denied", "Admin only");
-  }
-
-  const counters = {
-    created: 0,
-    updated: 0,
-    skipped: 0,
-    noEmail: 0,
-    defaultPasswordDisabled: !!data?.useDefaultPassword
-  };
-
-  const queue = [];
-  const addDocs = async (collectionName, role) => {
-    const snap = await db.collection(collectionName).get();
-    snap.forEach((docSnap) => {
-      const item = docSnap.data() || {};
-      const email = item.email || item.gmail || "";
-      if (!email) {
-        counters.noEmail += 1;
-        return;
-      }
-      queue.push({
-        email,
-        phone: item.phone || "",
-        phoneE164: item.phoneE164 || "",
-        displayName: item.fullName || item.name || item.studioName || item.customerName || "",
-        role: normEmail(item.role).includes("admin") ? "admin" : role
-      });
-    });
-  };
-
-  await addDocs("customers", "customer");
-  await addDocs("employees", "employee");
-  await addDocs("users", "customer");
-
-  const seen = new Set();
-  for (const item of queue) {
-    const email = normEmail(item.email);
-    if (seen.has(email)) {
-      counters.skipped += 1;
-      continue;
-    }
-    seen.add(email);
+  (async () => {
     try {
-      const result = await syncAuthRecord(item);
-      if (result.created) counters.created += 1;
-      else if (result.updated) counters.updated += 1;
-      else counters.skipped += 1;
+      const decoded = await requireAuth(req);
+      const result = await updateAuthUserCore(req.body || {}, {
+        uid: decoded.uid,
+        email: decoded.email || ""
+      });
+      res.json(result);
     } catch (error) {
-      console.error("bulkSyncAuth item failed", email, error);
-      counters.skipped += 1;
+      console.error("updateAuthUserHttp error:", error);
+      const status = error?.code === "unauthenticated"
+        ? 401
+        : error?.code === "permission-denied"
+        ? 403
+        : error?.code === "invalid-argument"
+        ? 400
+        : 500;
+      res.status(status).json({
+        success: false,
+        error: error?.message || "Auth update failed"
+      });
     }
-  }
-
-  return counters;
+  })();
 });
 
 // Enforce user role based on admin whitelist + employees/customers collections.
@@ -1233,17 +966,3 @@ exports.enforceUserRole = functions.firestore
     await change.after.ref.update({ role: desiredRole });
     return null;
   });
-
-// Payment and email functions already exist in their own deployed codebases.
-// Do not let the customer codebase claim those names during targeted auth deploys.
-[
-  "createRazorpayOrder",
-  "createRazorpayOrderHttp",
-  "verifyRazorpayPaymentHttp",
-  "sendCustomerEmail",
-  "autoSendCustomerWelcomeEmail",
-  "autoSendProjectReadyEmail",
-  "onPaymentCreate",
-].forEach((name) => {
-  delete exports[name];
-});

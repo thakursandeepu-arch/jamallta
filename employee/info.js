@@ -592,10 +592,7 @@ async function loadEmployeeInfo() {
     const emailKey = (data.email || currentUserEmail || "").toLowerCase();
     const empIdKey = (data.employeeId || "").toString().trim();
 
-    const attendanceQuery = emailKey
-      ? query(collection(db, "attendance"), where("employeeEmail", "==", emailKey))
-      : query(collection(db, "attendance"), where("employeeId", "==", empIdKey));
-    onSnapshot(attendanceQuery, (snap) => {
+    onSnapshot(collection(db, "attendance"), (snap) => {
       let presentWork = 0;
       let absent = 0;
       let leave = 0;

@@ -81,44 +81,8 @@ if (togglePass && passEl) {
 
 let persistenceReady = false;
 let suppressAutoRedirect = false;
-let manualLoginInProgress = false;
 const FORCE_LOGIN_KEY = "force_login";
 const SUPPRESS_KEY = "suppress_auto_redirect";
-const RECENT_LOGIN_KEY = "jamallta_recent_login";
-const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
-
-function getSafeNextPath() {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const next = params.get("next") || "";
-    if (!next || !next.startsWith("/") || next.startsWith("//")) return "";
-    const target = new URL(next, window.location.origin);
-    if (target.origin !== window.location.origin) return "";
-    if (target.pathname === "/login/login.html") return "";
-    return `${target.pathname}${target.search}${target.hash}`;
-  } catch (_) {
-    return "";
-  }
-}
-
-function redirectTo(path) {
-  window.location.replace(path);
-}
-
-function nextForRole(role) {
-  const next = getSafeNextPath();
-  if (role === "admin") {
-    return next.startsWith("/admin/admin.html") ? next : "/admin/admin.html";
-  }
-  if (role === "employee") {
-    return next.startsWith("/employee/") ? next : "/employee/employee.html";
-  }
-  if (role === "customer") {
-    return next.startsWith("/customer/") ? next : "/customer/customer-profile.html";
-  }
-  return "/";
-}
-
 async function ensurePersistence() {
   if (persistenceReady) return;
   try {
@@ -133,36 +97,29 @@ async function ensurePersistence() {
 // Auto-keep login on mobile/desktop if user didn't logout
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
-  if (manualLoginInProgress) return;
   if (suppressAutoRedirect || sessionStorage.getItem(SUPPRESS_KEY) === "1") return;
   if (localStorage.getItem(FORCE_LOGIN_KEY) === "1") {
     localStorage.removeItem(FORCE_LOGIN_KEY);
-    stopLoading();
+    try { signOut(auth); } catch (_) { /* ignore */ }
     return;
   }
   // avoid redirect loops on logout modal etc.
   startLoading();
-  redirectByRole(user);
+  redirectByRole(user.uid);
 });
 
 /* ================== ROLE BASED REDIRECT ================== */
-async function redirectByRole(userOrUid) {
-  const activeUser = (userOrUid && typeof userOrUid === "object") ? userOrUid : auth.currentUser;
-  const uid = activeUser?.uid || (typeof userOrUid === "string" ? userOrUid : "");
-  const currentEmail = (activeUser?.email || auth.currentUser?.email || "").toLowerCase();
+async function redirectByRole(uid) {
+  const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
+  const currentEmail = (auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : "";
   const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
   const isAdminEmail = isAllowedAdminEmail(currentEmail);
-  if (isAdminEmail) {
-    redirectTo(nextForRole("admin"));
-    return;
-  }
-
   const goEmployee = async () => {
     try {
       // First try by uid
       const empSnap = await getDoc(doc(db, "employees", uid));
       if (empSnap.exists()) {
-        redirectTo(nextForRole("employee"));
+        location.href = "../employee/employee.html";
         return true;
       }
       // Fallback by email
@@ -170,7 +127,7 @@ async function redirectByRole(userOrUid) {
         const empQ = query(collection(db, "employees"), where("email", "==", currentEmail));
         const empEmailSnap = await getDocs(empQ);
         if (!empEmailSnap.empty) {
-          redirectTo(nextForRole("employee"));
+          location.href = "../employee/employee.html";
           return true;
         }
       }
@@ -188,7 +145,7 @@ async function redirectByRole(userOrUid) {
         const role = (adminSnap.data()?.role || "").toLowerCase();
         const docEmail = adminSnap.data()?.email || "";
         if (role.includes("admin") && (isAllowedAdminEmail(currentEmail) || isAllowedAdminEmail(docEmail))) {
-          redirectTo(nextForRole("admin"));
+          location.href = "../admin/admin.html";
           return true;
         }
       }
@@ -198,7 +155,7 @@ async function redirectByRole(userOrUid) {
         if (!adminEmailSnap.empty) {
           const hasAdmin = adminEmailSnap.docs.some(d => ((d.data()?.role || "").toLowerCase()).includes("admin") && isAllowedAdminEmail(d.data()?.email));
           if (hasAdmin && isAllowedAdminEmail(currentEmail)) {
-            redirectTo(nextForRole("admin"));
+            location.href = "../admin/admin.html";
             return true;
           }
         }
@@ -218,7 +175,7 @@ async function redirectByRole(userOrUid) {
         );
         const customerSnap = await getDocs(q);
         if (!customerSnap.empty) {
-          redirectTo(nextForRole("customer"));
+          location.href = "../customer/customer-profile.html";
           return true;
         }
       }
@@ -238,7 +195,6 @@ async function redirectByRole(userOrUid) {
   }
 
   /* NO ACCESS */
-  manualLoginInProgress = false;
   errEl.textContent = "No access assigned";
   stopLoading();
 }
@@ -247,25 +203,13 @@ async function redirectByRole(userOrUid) {
 btn.onclick = async () => {
   errEl.textContent = "";
   startLoading();
-  manualLoginInProgress = true;
 
   try {
-    localStorage.removeItem(FORCE_LOGIN_KEY);
-    sessionStorage.removeItem(SUPPRESS_KEY);
-
     const rawId = emailEl.value.trim();
     const pass = passEl.value.trim();
     let loginEmail = rawId;
 
-    if (!rawId) {
-      manualLoginInProgress = false;
-      stopLoading();
-      errEl.textContent = "Email or mobile number is required";
-      return;
-    }
-
     if (!pass) {
-      manualLoginInProgress = false;
       stopLoading();
       errEl.textContent = "Password is required";
       return;
@@ -286,18 +230,15 @@ btn.onclick = async () => {
           } else {
             errEl.textContent = "Email not found";
           }
-          manualLoginInProgress = false;
           return;
         }
         loginEmail = data.email;
       } catch (e) {
-        manualLoginInProgress = false;
         stopLoading();
         errEl.textContent = "Login lookup failed. Try again.";
         return;
       }
     } else if (!loginEmail) {
-      manualLoginInProgress = false;
       stopLoading();
       errEl.textContent = "Please enter a valid email address";
       return;
@@ -307,15 +248,13 @@ btn.onclick = async () => {
     const cred = await signInWithEmailAndPassword(auth, loginEmail, pass);
     localStorage.removeItem(FORCE_LOGIN_KEY);
     sessionStorage.removeItem(SUPPRESS_KEY);
-    sessionStorage.setItem(RECENT_LOGIN_KEY, String(Date.now()));
 
     // Professional delay (UX)
     setTimeout(() => {
-      redirectByRole(cred.user);
+      redirectByRole(cred.user.uid);
     }, 600);
 
   } catch (err) {
-    manualLoginInProgress = false;
     stopLoading();
     const code = err?.code || "";
     console.error("Login failed:", err);
@@ -374,7 +313,7 @@ closeModal.onclick = () => {
   sessionStorage.removeItem(SUPPRESS_KEY);
   if (auth?.currentUser?.uid) {
     startLoading();
-    redirectByRole(auth.currentUser);
+    redirectByRole(auth.currentUser.uid);
   }
 };
 
@@ -566,9 +505,9 @@ if (saveNewPassBtn) {
     newPassMsg.textContent = "";
     const p1 = (newPassInput?.value || "").trim();
     const p2 = (confirmPassInput?.value || "").trim();
-    if (!p1 || p1.length < 8) {
+    if (!p1 || p1.length < 6) {
       newPassMsg.style.color = "red";
-      newPassMsg.textContent = "Password must be at least 8 characters.";
+      newPassMsg.textContent = "Password must be at least 6 characters.";
       return;
     }
     if (p1 !== p2) {
@@ -607,8 +546,6 @@ if (saveNewPassBtn) {
         newPassMsg.textContent = "OTP session expired. Try again.";
       } else if (code === "auth/weak-password" || code === "invalid-argument") {
         newPassMsg.textContent = "Password is too weak.";
-      } else if (code === "not-found") {
-        newPassMsg.textContent = "No account is linked with this phone.";
       } else {
         newPassMsg.textContent = "Reset failed. Please try again.";
       }

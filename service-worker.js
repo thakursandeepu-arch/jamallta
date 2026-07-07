@@ -1,9 +1,24 @@
-const CACHE_NAME = "jamallta-pwa-v28";
+const CACHE_NAME = "jamallta-pwa-v25";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/offline.html",
+  "/packages.html",
+  "/himachal-video-editor.html",
+  "/pahadi-video-editor.html",
   "/login/login.html",
+  "/customer/customer-profile.html",
+  "/customer/chat/customer-chet.html",
+  "/employee/index.html",
+  "/employee/employee.html",
+  "/employee/info.html",
+  "/employee/create-new-job/create-new-job.html",
+  "/admin/admin.html",
+  "/privacy.html",
+  "/terms.html",
+  "/proof.html",
+  "/service-areas.html",
+  "/pay.html",
   "/favicon.ico",
   "/manifest.webmanifest",
   "/assets/pwa.js",
@@ -13,39 +28,6 @@ const APP_SHELL = [
   "/assets/brand/jamallta-films-luxury-logo-512.png",
   "/assets/brand/jamallta-films-luxury-logo-192.png"
 ];
-
-const PUBLIC_NAVIGATION_PATHS = new Set([
-  "/",
-  "/index.html",
-  "/login/login.html",
-  "/offline.html",
-  "/404.html"
-]);
-
-function pathnameFor(request) {
-  try {
-    return new URL(request.url).pathname;
-  } catch {
-    return "/";
-  }
-}
-
-function isPublicNavigation(request) {
-  return PUBLIC_NAVIGATION_PATHS.has(pathnameFor(request));
-}
-
-function isProtectedAsset(request) {
-  const path = pathnameFor(request);
-  return path.startsWith("/admin/") ||
-    path.startsWith("/employee/") ||
-    path.startsWith("/customer/");
-}
-
-function isAuthRuntimeAsset(request) {
-  const path = pathnameFor(request);
-  return path.startsWith("/login/assets/") ||
-    path === "/admin/assets/admin-auth.js";
-}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -67,20 +49,7 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (!event.request.url.startsWith("http")) return;
 
-  if (isAuthRuntimeAsset(event.request)) {
-    event.respondWith(fetch(event.request, { cache: "no-store" }));
-    return;
-  }
-
   if (event.request.mode === "navigate") {
-    if (!isPublicNavigation(event.request)) {
-      event.respondWith(
-        fetch(event.request, { cache: "no-store" })
-          .catch(() => Response.redirect("/login/login.html", 302))
-      );
-      return;
-    }
-
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -97,7 +66,7 @@ self.addEventListener("fetch", (event) => {
     caches.match(event.request).then((cached) => {
       const fetched = fetch(event.request)
         .then((response) => {
-          if (response && response.status === 200 && !isProtectedAsset(event.request)) {
+          if (response && response.status === 200) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           }

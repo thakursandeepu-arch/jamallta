@@ -4,7 +4,6 @@ node_modules/
 .git/
 .git_old/
 .gitdata/
-tools/
 .DS_Store
 Thumbs.db
 deploy.log
@@ -23,7 +22,3 @@ email-functions/node_modules/
 email-functions/package-lock.json
 email-functions/.env
 email-functions/.env.*
-auth-functions/node_modules/
-auth-functions/package-lock.json
-auth-functions/.env
-auth-functions/.env.*

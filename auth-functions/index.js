@@ -5,7 +5,6 @@ const crypto = require("crypto");
 admin.initializeApp();
 const db = admin.firestore();
 const auth = admin.auth();
-const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
 
 const ALLOWED_ORIGINS = [
   "https://jamallta.com",
@@ -49,20 +48,15 @@ async function assertAdmin(decoded) {
   const callerUid = decoded.uid;
   let isAdmin = false;
   const email = (decoded.email || "").toLowerCase();
-  if (ADMIN_EMAILS.includes(email)) return;
   try {
     const adminDoc = await db.doc(`users/${callerUid}`).get();
-    if (adminDoc.exists && String(adminDoc.data()?.role || "").toLowerCase().includes("admin")) {
-      isAdmin = true;
-    }
+    if (adminDoc.exists) isAdmin = true;
     if (!isAdmin && email) {
       const adminQ = await db.collection("users")
         .where("email", "==", email)
         .limit(1)
         .get();
-      if (!adminQ.empty && adminQ.docs.some(d => String(d.data()?.role || "").toLowerCase().includes("admin"))) {
-        isAdmin = true;
-      }
+      if (!adminQ.empty) isAdmin = true;
     }
   } catch (_) {
     // ignore
@@ -77,7 +71,6 @@ async function updateAuthUser(data, decoded) {
   const newEmail = (data?.newEmail || "").trim();
   const phone = (data?.phone || "").trim();
   const displayName = (data?.displayName || "").trim();
-  const role = (data?.role || "employee").toString().trim().toLowerCase();
 
   if (!oldEmail && !newEmail) {
     throw new functions.https.HttpsError("invalid-argument", "Email required to match user");
@@ -107,19 +100,11 @@ async function updateAuthUser(data, decoded) {
   if (phone) updatePayload.phoneNumber = phone;
   if (displayName) updatePayload.displayName = displayName;
 
-  if (Object.keys(updatePayload).length > 0) {
-    await auth.updateUser(userRecord.uid, updatePayload);
+  if (Object.keys(updatePayload).length === 0) {
+    return { success: true, skipped: true };
   }
 
-  await db.doc(`users/${userRecord.uid}`).set({
-    email: newEmail || oldEmail || userRecord.email || "",
-    phone,
-    phoneE164: phone,
-    name: displayName || "",
-    role: role === "admin" ? "admin" : role === "customer" ? "customer" : "employee",
-    authSyncedAt: admin.firestore.FieldValue.serverTimestamp()
-  }, { merge: true });
-
+  await auth.updateUser(userRecord.uid, updatePayload);
   return { success: true, created };
 }
 

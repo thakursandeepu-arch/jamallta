@@ -1,26 +1,19 @@
-import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
-import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { db } from "/login/assets/firebase-config.js";
 import {
-  collection,
-  addDoc,
-  onSnapshot,
-  serverTimestamp,
-  query,
-  orderBy
+  collection, addDoc, onSnapshot,
+  serverTimestamp, query, orderBy
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
 import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL
+  getStorage, ref, uploadBytesResumable, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
 const storage = getStorage();
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
-const ALLOWED_EXTENSIONS = new Set([
-  "jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "pdf", "zip", "rar", "doc", "docx", "xls", "xlsx"
-]);
 
+const studioName = "Jamallta Films";
+const sender = "customer";
+
+/* DOM */
 const messagesEl = document.getElementById("messages");
 const msgInput = document.getElementById("msgInput");
 const sendBtn = document.getElementById("sendBtn");
@@ -28,133 +21,85 @@ const fileInput = document.getElementById("fileInput");
 const homeBtn = document.getElementById("homeBtn");
 const backChatBtn = document.getElementById("backChatBtn");
 
-let currentUser = null;
-let msgRef = null;
-let unsubscribeMessages = null;
-
+/* NAV */
 homeBtn.onclick = () => {
   window.location.href = "/customer/customer-profile.html";
 };
 backChatBtn.onclick = homeBtn.onclick;
 
-function safeFileName(name = "") {
-  return name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 120) || "upload";
-}
+/* LISTEN MESSAGES */
+const msgRef = collection(db,"chats",studioName,"messages");
 
-function isAllowedFile(file) {
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
-  return ALLOWED_EXTENSIONS.has(ext) && file.size <= MAX_FILE_SIZE;
-}
+onSnapshot(
+  query(msgRef,orderBy("createdAt")),
+  snap=>{
+    messagesEl.innerHTML="";
+    snap.forEach(d=>{
+      const m=d.data();
+      const div=document.createElement("div");
+      div.className=`msg ${m.sender}`;
 
-function appendMessage(message) {
-  const wrapper = document.createElement("div");
-  wrapper.className = `msg ${message.sender === "customer" ? "customer" : "admin"}`;
+      if(m.fileUrl){
+        div.innerHTML=`
+          <div class="file-box">
+            <div>${m.text || "File"}</div>
+            <a class="file-link" href="${m.fileUrl}" target="_blank">
+              📎 ${m.fileName}
+            </a>
+          </div>
+          <span class="tick ${m.seen?'blue':''}">✔✔</span>
+        `;
+      }else{
+        div.innerHTML=`
+          ${m.text}
+          <span class="tick ${m.seen?'blue':''}">✔✔</span>
+        `;
+      }
 
-  if (message.fileUrl) {
-    const box = document.createElement("div");
-    box.className = "file-box";
-
-    const label = document.createElement("div");
-    label.textContent = message.text || "File";
-
-    const link = document.createElement("a");
-    link.className = "file-link";
-    link.href = message.fileUrl;
-    link.target = "_blank";
-    link.rel = "noopener";
-    link.textContent = `Attachment: ${message.fileName || "file"}`;
-
-    box.append(label, link);
-    wrapper.appendChild(box);
-  } else {
-    wrapper.appendChild(document.createTextNode(message.text || ""));
+      messagesEl.appendChild(div);
+    });
+    messagesEl.scrollTop=messagesEl.scrollHeight;
   }
+);
 
-  const tick = document.createElement("span");
-  tick.className = `tick ${message.seen ? "blue" : ""}`;
-  tick.textContent = "✓✓";
-  wrapper.appendChild(tick);
-  messagesEl.appendChild(wrapper);
-}
-
-function listenMessages() {
-  if (!msgRef) return;
-  if (unsubscribeMessages) unsubscribeMessages();
-  unsubscribeMessages = onSnapshot(
-    query(msgRef, orderBy("createdAt")),
-    (snap) => {
-      messagesEl.innerHTML = "";
-      snap.forEach((docSnap) => appendMessage(docSnap.data() || {}));
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-  );
-}
-
-async function sendText() {
-  if (!currentUser || !msgRef) return;
+/* SEND TEXT */
+sendBtn.onclick = async () => {
   const text = msgInput.value.trim();
-  if (!text) return;
+  if(!text) return;
 
-  await addDoc(msgRef, {
+  await addDoc(msgRef,{
     text,
-    sender: "customer",
-    senderId: currentUser.uid,
-    senderEmail: currentUser.email || "",
+    sender,
     createdAt: serverTimestamp(),
-    seen: false
+    seen:false
   });
-  msgInput.value = "";
-}
+  msgInput.value="";
+};
 
-async function sendFile() {
-  if (!currentUser || !msgRef) return;
+/* SEND FILE (FIXED) */
+fileInput.onchange = async () => {
   const file = fileInput.files[0];
-  if (!file) return;
-  if (!isAllowedFile(file)) {
-    alert("Only common image, video, PDF, Office, ZIP/RAR files up to 25 MB are allowed.");
-    fileInput.value = "";
-    return;
-  }
+  if(!file) return;
 
-  const storagePath = `chatUploads/${currentUser.uid}/${Date.now()}_${safeFileName(file.name)}`;
-  const uploadTask = uploadBytesResumable(ref(storage, storagePath), file);
+  const storageRef = ref(
+    storage,
+    `chatUploads/${studioName}/${Date.now()}_${file.name}`
+  );
 
-  uploadTask.on("state_changed", null, (error) => {
-    alert(error?.message || "Upload failed.");
-  }, async () => {
+  const uploadTask = uploadBytesResumable(storageRef,file);
+
+  uploadTask.on("state_changed",null,alert,async ()=>{
     const url = await getDownloadURL(uploadTask.snapshot.ref);
-    await addDoc(msgRef, {
-      sender: "customer",
-      senderId: currentUser.uid,
-      senderEmail: currentUser.email || "",
+
+    await addDoc(msgRef,{
+      sender,
       text: file.name,
       fileUrl: url,
       fileName: file.name,
-      storagePath,
       createdAt: serverTimestamp(),
-      seen: false
+      seen:false
     });
-    fileInput.value = "";
-  });
-}
 
-sendBtn.onclick = sendText;
-msgInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey) {
-    event.preventDefault();
-    sendText();
-  }
-});
-fileInput.onchange = sendFile;
-
-waitForAuthReady().then(() => {
-  onAuthStateChanged(auth, (user) => {
-    if (!user) {
-      window.location.replace("/login/login.html");
-      return;
-    }
-    currentUser = user;
-    msgRef = collection(db, "chats", user.uid, "messages");
-    listenMessages();
+    fileInput.value="";
   });
-});
+};

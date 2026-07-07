@@ -4,190 +4,25 @@ service cloud.firestore {
     function signedIn() {
       return request.auth != null;
     }
-
-    function userDocPath() {
-      return /databases/$(database)/documents/users/$(request.auth.uid);
+    function isAdminEmail() {
+      return signedIn() && request.auth.token.email == "thakursandeepu@gmail.com";
     }
 
-    function hasUserDoc() {
-      return signedIn() && exists(userDocPath());
+    // Lock down users collection: only admin email can write.
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdminEmail();
     }
 
-    function hasAnyRole(roles) {
-      return hasUserDoc() && get(userDocPath()).data.role in roles;
-    }
-
-    function isAdmin() {
-      return signedIn() && (
-        request.auth.token.email == "thakursandeepu@gmail.com" ||
-        hasAnyRole(["admin", "Admin", "owner", "Owner"])
-      );
-    }
-
-    function isEmployee() {
-      return isAdmin() ||
-        hasAnyRole(["employee", "Employee", "editor", "Editor"]) ||
-        (signedIn() && exists(/databases/$(database)/documents/employees/$(request.auth.uid)));
-    }
-
-    function hasEmail() {
-      return signedIn() && request.auth.token.email != null;
-    }
-
-    function emailMatches(data) {
-      return hasEmail() && (
-        data.email == request.auth.token.email ||
-        data.gmail == request.auth.token.email ||
-        data.customerEmail == request.auth.token.email ||
-        data.userEmail == request.auth.token.email ||
-        data.employeeEmail == request.auth.token.email
-      );
-    }
-
-    function uidMatches(data) {
-      return signedIn() && (
-        data.uid == request.auth.uid ||
-        data.userId == request.auth.uid ||
-        data.customerId == request.auth.uid ||
-        data.employeeUid == request.auth.uid
-      );
-    }
-
-    function phoneMatches(data) {
-      return signedIn() &&
-        request.auth.token.phone_number != null &&
-        data.phoneE164 == request.auth.token.phone_number;
-    }
-
-    function sameSelfCustomerStudio(value) {
-      return signedIn() &&
-        value != null &&
-        exists(/databases/$(database)/documents/customers/$(request.auth.uid)) &&
-        (
-          value == get(/databases/$(database)/documents/customers/$(request.auth.uid)).data.studioName ||
-          value == get(/databases/$(database)/documents/customers/$(request.auth.uid)).data.customerName
-        );
-    }
-
-    function sameUserStudio(value) {
-      return signedIn() &&
-        value != null &&
-        hasUserDoc() &&
-        (
-          value == get(userDocPath()).data.studioName ||
-          value == get(userDocPath()).data.customerName ||
-          value == get(userDocPath()).data.name
-        );
-    }
-
-    function customerRelated(data) {
-      return emailMatches(data) ||
-        phoneMatches(data) ||
-        uidMatches(data) ||
-        sameUserStudio(data.studioName) ||
-        sameUserStudio(data.customerName) ||
-        sameSelfCustomerStudio(data.studioName) ||
-        sameSelfCustomerStudio(data.customerName);
-    }
-
-    function employeeRelated(data) {
-      return emailMatches(data) ||
-        uidMatches(data) ||
-        (signedIn() && data.employeeId != null &&
-          exists(/databases/$(database)/documents/employees/$(request.auth.uid)) &&
-          data.employeeId == get(/databases/$(database)/documents/employees/$(request.auth.uid)).data.employeeId);
-    }
-
-    match /siteData/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
+    // Media: public read for website, admin-only write.
     match /media/{mediaId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, update, delete: if isAdminEmail();
     }
 
-    match /users/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid) || emailMatches(resource.data);
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /employees/{employeeId} {
-      allow read: if isAdmin() || isEmployee() || employeeRelated(resource.data);
-      allow create, update, delete: if isAdmin();
-    }
-
-    match /customers/{customerId} {
-      allow read: if isAdmin() || isEmployee() || customerRelated(resource.data);
-      allow create, update, delete: if isAdmin() || isEmployee();
-    }
-
-    match /jobs/{jobId} {
-      allow read: if isAdmin() || isEmployee() || customerRelated(resource.data);
-      allow create, update, delete: if isAdmin() || isEmployee();
-    }
-
-    match /payments/{paymentId} {
-      allow read: if isAdmin() || isEmployee() || customerRelated(resource.data);
-      allow create: if isAdmin() || isEmployee() || customerRelated(request.resource.data);
-      allow update, delete: if isAdmin() || isEmployee();
-    }
-
-    match /billing/{billingId} {
-      allow read, write: if isAdmin() || isEmployee();
-    }
-
-    match /studioItems/{itemId} {
-      allow read, write: if isAdmin() || isEmployee();
-    }
-
-    match /attendance/{attendanceId} {
-      allow read: if isAdmin() || employeeRelated(resource.data);
-      allow create: if isAdmin() || (isEmployee() && employeeRelated(request.resource.data));
-      allow update: if isAdmin() || (isEmployee() && employeeRelated(resource.data) && employeeRelated(request.resource.data));
-      allow delete: if isAdmin();
-    }
-
-    match /leaveRequests/{requestId} {
-      allow read: if isAdmin() || employeeRelated(resource.data);
-      allow create: if isEmployee() && employeeRelated(request.resource.data);
-      allow update, delete: if isAdmin();
-    }
-
-    match /salaryPayments/{paymentId} {
-      allow read: if isAdmin() || employeeRelated(resource.data);
-      allow write: if isAdmin();
-    }
-
-    match /holidays/{holidayId} {
-      allow read: if signedIn();
-      allow write: if isAdmin();
-    }
-
-    match /notifications/{notificationId} {
-      allow read: if isAdmin() || employeeRelated(resource.data);
-      allow create: if signedIn();
-      allow update: if isAdmin() || employeeRelated(resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /chats/{chatId}/messages/{messageId} {
-      allow read: if isAdmin() || isEmployee() || (signedIn() && request.auth.uid == chatId);
-      allow create: if isAdmin() || isEmployee() || (
-        signedIn() &&
-        request.auth.uid == chatId &&
-        request.resource.data.senderId == request.auth.uid
-      );
-      allow update, delete: if isAdmin() || isEmployee();
-    }
-
-    match /emailLogs/{logId} {
-      allow read, write: if isAdmin();
-    }
-
+    // Default: signed-in users can read/write other collections.
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if signedIn();
     }
   }
 }

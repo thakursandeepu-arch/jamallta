@@ -1,7 +1,4 @@
 (function () {
-  var path = window.location.pathname || "/";
-  if (/^\/(login|admin|employee|customer)(\/|$)/.test(path)) return;
-
   var isMobileInstallDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (!isMobileInstallDevice) return;
 
@@ -78,9 +75,8 @@
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/service-worker.js?v=28")
-      .then(function (registration) {
-        try { registration.update(); } catch (_) {}
+    navigator.serviceWorker.register("/service-worker.js")
+      .then(function () {
         if (isAndroid && !isAndroidWebView) {
           createInstallButton("apk");
           return;

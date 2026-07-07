@@ -795,11 +795,8 @@ async function loadEmployeeInfo() {
     const empIdKey = (data.employeeId || "").toString().trim();
 
     try {
-      const { collection, onSnapshot, query, where } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
-      const attendanceQuery = emailKey
-        ? query(collection(db, "attendance"), where("employeeEmail", "==", emailKey))
-        : query(collection(db, "attendance"), where("employeeId", "==", empIdKey));
-      onSnapshot(attendanceQuery, (snap) => {
+      const { collection, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js");
+      onSnapshot(collection(db, "attendance"), (snap) => {
         let present = 0;
         let absent = 0;
         let leave = 0;
