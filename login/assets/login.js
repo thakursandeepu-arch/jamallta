@@ -84,6 +84,7 @@ let suppressAutoRedirect = false;
 let manualLoginInProgress = false;
 const FORCE_LOGIN_KEY = "force_login";
 const SUPPRESS_KEY = "suppress_auto_redirect";
+const RECENT_LOGIN_KEY = "jamallta_recent_login";
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
 
 function getSafeNextPath() {
@@ -136,7 +137,7 @@ onAuthStateChanged(auth, (user) => {
   if (suppressAutoRedirect || sessionStorage.getItem(SUPPRESS_KEY) === "1") return;
   if (localStorage.getItem(FORCE_LOGIN_KEY) === "1") {
     localStorage.removeItem(FORCE_LOGIN_KEY);
-    try { signOut(auth); } catch (_) { /* ignore */ }
+    stopLoading();
     return;
   }
   // avoid redirect loops on logout modal etc.
@@ -306,6 +307,7 @@ btn.onclick = async () => {
     const cred = await signInWithEmailAndPassword(auth, loginEmail, pass);
     localStorage.removeItem(FORCE_LOGIN_KEY);
     sessionStorage.removeItem(SUPPRESS_KEY);
+    sessionStorage.setItem(RECENT_LOGIN_KEY, String(Date.now()));
 
     // Professional delay (UX)
     setTimeout(() => {

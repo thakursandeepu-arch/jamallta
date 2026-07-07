@@ -12,10 +12,12 @@ import {
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
 const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
 const isFramedAdminPage = window.top && window.top !== window.self;
+const RECENT_LOGIN_KEY = "jamallta_recent_login";
 
 function revealPage() {
   delete document.documentElement.dataset.authPending;
   document.documentElement.dataset.adminAuth = "ok";
+  try { sessionStorage.removeItem(RECENT_LOGIN_KEY); } catch (_) {}
 }
 
 function currentTarget() {
@@ -41,6 +43,40 @@ function parentAdminSessionOk() {
   } catch (_) {
     return false;
   }
+}
+
+function recentLoginActive() {
+  try {
+    const value = Number(sessionStorage.getItem(RECENT_LOGIN_KEY) || 0);
+    return value > 0 && Date.now() - value < 30000;
+  } catch (_) {
+    return false;
+  }
+}
+
+function waitForSignedInUser(timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    if (auth.currentUser) {
+      resolve(auth.currentUser);
+      return;
+    }
+
+    let settled = false;
+    let unsubscribe = null;
+    const timeout = setTimeout(() => finish(null), timeoutMs);
+
+    function finish(user) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      if (unsubscribe) unsubscribe();
+      resolve(user || auth.currentUser || null);
+    }
+
+    unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      if (authUser) finish(authUser);
+    });
+  });
 }
 
 function markAdminAuthBlocked(reason) {
@@ -109,19 +145,25 @@ async function setWelcomeName(user) {
 
 async function checkAdminAccess(user) {
   try {
+    let activeUser = user || auth.currentUser;
+
     if (parentAdminSessionOk()) {
       revealPage();
-      if (user) {
+      if (activeUser) {
         if (document.readyState === "loading") {
-          document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
+          document.addEventListener("DOMContentLoaded", () => setWelcomeName(activeUser), { once: true });
         } else {
-          setWelcomeName(user);
+          setWelcomeName(activeUser);
         }
       }
       return;
     }
 
-    if (!user) {
+    if (!activeUser && recentLoginActive()) {
+      activeUser = await waitForSignedInUser();
+    }
+
+    if (!activeUser) {
       markAdminAuthBlocked("not signed in");
       if (!isFramedAdminPage) {
         redirectToLogin();
@@ -129,7 +171,7 @@ async function checkAdminAccess(user) {
       return;
     }
 
-    const isAdmin = await hasAdminRole(user);
+    const isAdmin = await hasAdminRole(activeUser);
     if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
       markAdminAuthBlocked("not admin");
@@ -140,9 +182,9 @@ async function checkAdminAccess(user) {
     revealPage();
 
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
+      document.addEventListener("DOMContentLoaded", () => setWelcomeName(activeUser), { once: true });
     } else {
-      setWelcomeName(user);
+      setWelcomeName(activeUser);
     }
   } catch (err) {
     console.error("[admin-auth] unexpected error", err);
