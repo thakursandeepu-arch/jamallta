@@ -984,7 +984,8 @@ async function ensureAuthUser({ oldEmail, newEmail, phone, displayName }) {
       oldEmail: (oldEmail || "").trim(),
       newEmail: (newEmail || "").trim(),
       phone: (phone || "").trim(),
-      displayName: (displayName || "").trim()
+      displayName: (displayName || "").trim(),
+      role: "employee"
     };
     const res = await fetch(updateAuthUserHttpUrl, {
       method: "POST",

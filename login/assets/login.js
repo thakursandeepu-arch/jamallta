@@ -505,9 +505,9 @@ if (saveNewPassBtn) {
     newPassMsg.textContent = "";
     const p1 = (newPassInput?.value || "").trim();
     const p2 = (confirmPassInput?.value || "").trim();
-    if (!p1 || p1.length < 6) {
+    if (!p1 || p1.length < 8) {
       newPassMsg.style.color = "red";
-      newPassMsg.textContent = "Password must be at least 6 characters.";
+      newPassMsg.textContent = "Password must be at least 8 characters.";
       return;
     }
     if (p1 !== p2) {
@@ -546,6 +546,8 @@ if (saveNewPassBtn) {
         newPassMsg.textContent = "OTP session expired. Try again.";
       } else if (code === "auth/weak-password" || code === "invalid-argument") {
         newPassMsg.textContent = "Password is too weak.";
+      } else if (code === "not-found") {
+        newPassMsg.textContent = "No account is linked with this phone.";
       } else {
         newPassMsg.textContent = "Reset failed. Please try again.";
       }

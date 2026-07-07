@@ -160,6 +160,18 @@ function formatCurrency(v) {
   return `Rs. ${num.toFixed(2)}`;
 }
 
+function clearElement(node) {
+  if (!node) return;
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
+
+function createEl(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = String(text);
+  return node;
+}
+
 function projectDisplayName(j) {
   return j?.projectName || j?.jobNo || "your project";
 }
@@ -217,7 +229,7 @@ function addNotificationItem(item) {
 
 function renderNotifications() {
   if (!notificationsList) return;
-  notificationsList.innerHTML = "";
+  clearElement(notificationsList);
   if (!notifCache.length) {
     if (notificationsEmpty) notificationsEmpty.style.display = "block";
     if (notificationsEmpty) notificationsList.appendChild(notificationsEmpty);
@@ -226,27 +238,30 @@ function renderNotifications() {
   if (notificationsEmpty) notificationsEmpty.style.display = "none";
 
   notifCache.forEach(n => {
-    const totalLine = Number.isFinite(n.totalAmount)
-      ? `<div>Total: ${formatCurrency(n.totalAmount)}</div>`
-      : "";
-    const payBtn = n.showPay && Number(n.dueAmount || 0) > 0
-      ? `<button class="btn btn-primary btn-sm notif-pay" data-job="${n.jobId}" data-due="${n.dueAmount}">Pay Now</button>`
-      : "";
-    const html = `
-      <div class="notification-item" data-id="${n.id}">
-        <div class="notification-title">${n.title}</div>
-        <div class="notification-message">${n.message}</div>
-        <div class="notification-meta">
-          ${totalLine}
-          <div>${new Date(n.createdAt).toLocaleString()}</div>
-        </div>
-        <div class="notification-actions">
-          ${payBtn}
-          <button class="link-btn notif-learn">Learn More</button>
-        </div>
-      </div>
-    `;
-    notificationsList.insertAdjacentHTML("beforeend", html);
+    const item = createEl("div", "notification-item");
+    item.dataset.id = String(n.id || "");
+
+    item.appendChild(createEl("div", "notification-title", n.title || "Update"));
+    item.appendChild(createEl("div", "notification-message", n.message || ""));
+
+    const meta = createEl("div", "notification-meta");
+    if (Number.isFinite(Number(n.totalAmount))) {
+      meta.appendChild(createEl("div", "", `Total: ${formatCurrency(n.totalAmount)}`));
+    }
+    meta.appendChild(createEl("div", "", new Date(n.createdAt).toLocaleString()));
+    item.appendChild(meta);
+
+    const actions = createEl("div", "notification-actions");
+    if (n.showPay && Number(n.dueAmount || 0) > 0) {
+      const payBtn = createEl("button", "btn btn-primary btn-sm notif-pay", "Pay Now");
+      payBtn.dataset.job = String(n.jobId || "");
+      payBtn.dataset.due = String(n.dueAmount || 0);
+      actions.appendChild(payBtn);
+    }
+    actions.appendChild(createEl("button", "link-btn notif-learn", "Learn More"));
+    item.appendChild(actions);
+
+    notificationsList.appendChild(item);
   });
 }
 
@@ -598,7 +613,7 @@ function startPaymentsListener() {
     snap => {
       if (!paymentTable) return;
       payments = [];
-      paymentTable.innerHTML = "";
+      clearElement(paymentTable);
       const arr = snap.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(p => p && !p.deleteData)
@@ -609,7 +624,13 @@ function startPaymentsListener() {
         });
 
       if (arr.length === 0) {
-        paymentTable.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px">No payments</td></tr>`;
+        const row = document.createElement("tr");
+        const cell = createEl("td", "", "No payments");
+        cell.colSpan = 3;
+        cell.style.textAlign = "center";
+        cell.style.padding = "20px";
+        row.appendChild(cell);
+        paymentTable.appendChild(row);
       } else {
         arr.forEach(p => {
           payments.push(p);
@@ -617,13 +638,11 @@ function startPaymentsListener() {
             ? new Date(p.createdAt.seconds * 1000).toLocaleDateString()
             : (p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-");
           const note = (p.note || p.remarks || (p.jobId ? "Job Payment" : "Payment received")).toString();
-          paymentTable.innerHTML += `
-            <tr>
-              <td>${dt}</td>
-              <td class="right">Rs. ${Number(p.amount).toFixed(2)}</td>
-              <td>${note}</td>
-            </tr>
-          `;
+          const row = document.createElement("tr");
+          row.appendChild(createEl("td", "", dt));
+          row.appendChild(createEl("td", "right", formatCurrency(p.amount)));
+          row.appendChild(createEl("td", "", note));
+          paymentTable.appendChild(row);
         });
       }
 
@@ -756,7 +775,8 @@ function recalcAndRender() {
 }
 
 function renderJobs() {
-  projectsList.innerHTML = "";
+  if (!projectsList || !searchBox) return;
+  clearElement(projectsList);
   const q = (searchBox.value || "").toLowerCase();
 
   const totalPayments = payments.reduce((a, p) => a + Number(p.amount || 0), 0);
@@ -811,33 +831,53 @@ function renderJobs() {
       const due = Number(alloc.pending || 0);
 
       const canPay = due > 0.01;
-      const progress = progressPercent(j);
+      const progress = Math.max(0, Math.min(100, Number(progressPercent(j)) || 0));
       const deletedAt = j.deleteData ? formatAnyDate(j.deletedAt) : "";
-      projectsList.innerHTML += `
-        <div class="project">
-          <b>${j.projectName}</b> (Job ${j.jobNo})<br>
-          Status: ${statusOf(j)}
-          ${deletedAt ? `<div class="muted" style="margin-top:4px;">Deleted At: ${deletedAt}</div>` : ""}
-          <div class="progress-wrap" aria-label="Processing">
-            <div class="progress-label">Processing</div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width:${progress}%;"></div>
-            </div>
-          </div>
 
-          ${j.items.map(i => `
-            <div class="item">
-              <span>${i.name}</span>
-              <span>Rs. ${i.rowTotal.toFixed(2)}</span>
-            </div>
-          `).join("")}
+      const project = createEl("div", "project");
+      const title = document.createElement("b");
+      title.textContent = j.projectName || "Project";
+      project.appendChild(title);
+      project.appendChild(document.createTextNode(` (Job ${j.jobNo || "-"})`));
+      project.appendChild(document.createElement("br"));
+      project.appendChild(document.createTextNode(`Status: ${statusOf(j)}`));
 
-          <div class="project-footer">
-            <span>Paid Rs. ${paid.toFixed(2)} | Due Rs. ${due.toFixed(2)}</span>
-            ${canPay ? `<button class="btn btn-primary btn-sm job-pay" data-job="${j.id}" data-due="${due.toFixed(2)}">Pay</button>` : `<span class="muted">Paid</span>`}
-          </div>
-        </div>
-      `;
+      if (deletedAt) {
+        const deleted = createEl("div", "muted", `Deleted At: ${deletedAt}`);
+        deleted.style.marginTop = "4px";
+        project.appendChild(deleted);
+      }
+
+      const progressWrap = createEl("div", "progress-wrap");
+      progressWrap.setAttribute("aria-label", "Processing");
+      progressWrap.appendChild(createEl("div", "progress-label", "Processing"));
+      const progressBar = createEl("div", "progress-bar");
+      const progressFill = createEl("div", "progress-fill");
+      progressFill.style.width = `${progress}%`;
+      progressBar.appendChild(progressFill);
+      progressWrap.appendChild(progressBar);
+      project.appendChild(progressWrap);
+
+      (j.items || []).forEach(i => {
+        const item = createEl("div", "item");
+        item.appendChild(createEl("span", "", i.name || "Item"));
+        item.appendChild(createEl("span", "", formatCurrency(i.rowTotal)));
+        project.appendChild(item);
+      });
+
+      const footer = createEl("div", "project-footer");
+      footer.appendChild(createEl("span", "", `Paid ${formatCurrency(paid)} | Due ${formatCurrency(due)}`));
+      if (canPay) {
+        const payBtn = createEl("button", "btn btn-primary btn-sm job-pay", "Pay");
+        payBtn.dataset.job = String(j.id || "");
+        payBtn.dataset.due = due.toFixed(2);
+        footer.appendChild(payBtn);
+      } else {
+        footer.appendChild(createEl("span", "muted", "Paid"));
+      }
+      project.appendChild(footer);
+
+      projectsList.appendChild(project);
     });
 }
 

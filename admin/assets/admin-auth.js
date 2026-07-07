@@ -1,6 +1,3 @@
-// admin-auth.js
-// Admin Security Guard
-
 import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js?v=2";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import {
@@ -13,45 +10,34 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
-const ADMIN_SESSION_KEY = "jamallta_admin_session";
-const ADMIN_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
 const isFramedAdminPage = window.top && window.top !== window.self;
 
-function readAdminSession(user) {
-  try {
-    const cached = JSON.parse(sessionStorage.getItem(ADMIN_SESSION_KEY) || localStorage.getItem(ADMIN_SESSION_KEY) || "{}");
-    const email = (user?.email || "").toLowerCase();
-    return cached?.uid === user?.uid &&
-      cached?.email === email &&
-      Date.now() - Number(cached?.savedAt || 0) < ADMIN_SESSION_MAX_AGE_MS;
-  } catch {
-    return false;
+function revealPage() {
+  delete document.documentElement.dataset.authPending;
+  document.documentElement.dataset.adminAuth = "ok";
+}
+
+function currentTarget() {
+  return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+}
+
+function redirectTop(url) {
+  if (isFramedAdminPage) {
+    window.top.location.replace(url);
+    return;
   }
+  window.location.replace(url);
 }
 
-function saveAdminSession(user) {
-  try {
-    const payload = JSON.stringify({
-      uid: user.uid,
-      email: (user.email || "").toLowerCase(),
-      savedAt: Date.now()
-    });
-    sessionStorage.setItem(ADMIN_SESSION_KEY, payload);
-    localStorage.setItem(ADMIN_SESSION_KEY, payload);
-  } catch {}
-}
-
-function clearAdminSession() {
-  try {
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    localStorage.removeItem(ADMIN_SESSION_KEY);
-  } catch {}
+function redirectToLogin() {
+  redirectTop(`/login/login.html?next=${encodeURIComponent(currentTarget())}`);
 }
 
 function markAdminAuthBlocked(reason) {
   console.warn(`[admin-auth] access not confirmed: ${reason}`);
   document.documentElement.dataset.adminAuth = "blocked";
+  delete document.documentElement.dataset.authPending;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => markAdminAuthBlocked(reason), { once: true });
     return;
@@ -64,7 +50,7 @@ function markAdminAuthBlocked(reason) {
 
 async function hasAdminRole(user) {
   const email = (user.email || "").toLowerCase();
-  if (!isAllowedAdminEmail(email)) return false;
+  if (isAllowedAdminEmail(email)) return true;
 
   const roleIncludesAdmin = (snap) => {
     if (!snap?.exists?.()) return false;
@@ -115,25 +101,20 @@ async function setWelcomeName(user) {
 async function checkAdminAccess(user) {
   try {
     if (!user) {
-      clearAdminSession();
       markAdminAuthBlocked("not signed in");
-      return;
-    }
-
-    if (isFramedAdminPage && (readAdminSession(user) || isAllowedAdminEmail(user.email))) {
-      saveAdminSession(user);
+      redirectToLogin();
       return;
     }
 
     const isAdmin = await hasAdminRole(user);
     if (!isAdmin) {
       console.warn("[admin-auth] access denied (not admin)");
-      clearAdminSession();
       markAdminAuthBlocked("not admin");
+      redirectTop("/");
       return;
     }
 
-    saveAdminSession(user);
+    revealPage();
 
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });

@@ -4,17 +4,55 @@ service firebase.storage {
     function signedIn() {
       return request.auth != null;
     }
-    function isAdminEmail() {
-      return signedIn() && request.auth.token.email == "thakursandeepu@gmail.com";
+
+    function userDocPath() {
+      return /databases/(default)/documents/users/$(request.auth.uid);
     }
 
-    // Public read for portfolio media; admin-only write.
+    function hasUserDoc() {
+      return signedIn() && firestore.exists(userDocPath());
+    }
+
+    function hasAnyRole(roles) {
+      return hasUserDoc() && firestore.get(userDocPath()).data.role in roles;
+    }
+
+    function isAdmin() {
+      return signedIn() && (
+        request.auth.token.email == "thakursandeepu@gmail.com" ||
+        hasAnyRole(["admin", "Admin", "owner", "Owner"])
+      );
+    }
+
+    function isEmployee() {
+      return isAdmin() ||
+        hasAnyRole(["employee", "Employee", "editor", "Editor"]) ||
+        (signedIn() && firestore.exists(/databases/(default)/documents/employees/$(request.auth.uid)));
+    }
+
+    function validChatUpload() {
+      return request.resource != null &&
+        request.resource.size < 25 * 1024 * 1024 &&
+        request.resource.contentType.matches("(image|video|application)/.*");
+    }
+
+    function validMediaUpload() {
+      return request.resource != null &&
+        request.resource.size < 300 * 1024 * 1024 &&
+        request.resource.contentType.matches("(image|video|application)/.*");
+    }
+
     match /media/{allPaths=**} {
       allow read: if true;
-      allow write: if isAdminEmail();
+      allow write: if isAdmin() && validMediaUpload();
     }
 
-    // Default: block everything else.
+    match /chatUploads/{uid}/{allPaths=**} {
+      allow read: if isAdmin() || isEmployee() || (signedIn() && request.auth.uid == uid);
+      allow write: if signedIn() && request.auth.uid == uid && validChatUpload();
+      allow delete: if isAdmin();
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
