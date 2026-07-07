@@ -1,4 +1,4 @@
-const CACHE_NAME = "jamallta-pwa-v26";
+const CACHE_NAME = "jamallta-pwa-v27";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -8,8 +8,6 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/assets/pwa.js",
   "/assets/app-session.js",
-  "/login/assets/auth-init.js",
-  "/login/assets/auth-guard.js",
   "/assets/brand/jamallta-films-luxury-logo-48.png",
   "/assets/brand/jamallta-films-luxury-logo.png",
   "/assets/brand/jamallta-films-luxury-logo-512.png",
@@ -43,6 +41,12 @@ function isProtectedAsset(request) {
     path.startsWith("/customer/");
 }
 
+function isAuthRuntimeAsset(request) {
+  const path = pathnameFor(request);
+  return path.startsWith("/login/assets/") ||
+    path === "/admin/assets/admin-auth.js";
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
@@ -62,6 +66,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   if (!event.request.url.startsWith("http")) return;
+
+  if (isAuthRuntimeAsset(event.request)) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
 
   if (event.request.mode === "navigate") {
     if (!isPublicNavigation(event.request)) {

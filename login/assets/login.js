@@ -81,6 +81,7 @@ if (togglePass && passEl) {
 
 let persistenceReady = false;
 let suppressAutoRedirect = false;
+let manualLoginInProgress = false;
 const FORCE_LOGIN_KEY = "force_login";
 const SUPPRESS_KEY = "suppress_auto_redirect";
 const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
@@ -131,6 +132,7 @@ async function ensurePersistence() {
 // Auto-keep login on mobile/desktop if user didn't logout
 onAuthStateChanged(auth, (user) => {
   if (!user) return;
+  if (manualLoginInProgress) return;
   if (suppressAutoRedirect || sessionStorage.getItem(SUPPRESS_KEY) === "1") return;
   if (localStorage.getItem(FORCE_LOGIN_KEY) === "1") {
     localStorage.removeItem(FORCE_LOGIN_KEY);
@@ -233,6 +235,7 @@ async function redirectByRole(uid) {
   }
 
   /* NO ACCESS */
+  manualLoginInProgress = false;
   errEl.textContent = "No access assigned";
   stopLoading();
 }
@@ -241,13 +244,25 @@ async function redirectByRole(uid) {
 btn.onclick = async () => {
   errEl.textContent = "";
   startLoading();
+  manualLoginInProgress = true;
 
   try {
+    localStorage.removeItem(FORCE_LOGIN_KEY);
+    sessionStorage.removeItem(SUPPRESS_KEY);
+
     const rawId = emailEl.value.trim();
     const pass = passEl.value.trim();
     let loginEmail = rawId;
 
+    if (!rawId) {
+      manualLoginInProgress = false;
+      stopLoading();
+      errEl.textContent = "Email or mobile number is required";
+      return;
+    }
+
     if (!pass) {
+      manualLoginInProgress = false;
       stopLoading();
       errEl.textContent = "Password is required";
       return;
@@ -268,15 +283,18 @@ btn.onclick = async () => {
           } else {
             errEl.textContent = "Email not found";
           }
+          manualLoginInProgress = false;
           return;
         }
         loginEmail = data.email;
       } catch (e) {
+        manualLoginInProgress = false;
         stopLoading();
         errEl.textContent = "Login lookup failed. Try again.";
         return;
       }
     } else if (!loginEmail) {
+      manualLoginInProgress = false;
       stopLoading();
       errEl.textContent = "Please enter a valid email address";
       return;
@@ -293,6 +311,7 @@ btn.onclick = async () => {
     }, 600);
 
   } catch (err) {
+    manualLoginInProgress = false;
     stopLoading();
     const code = err?.code || "";
     console.error("Login failed:", err);

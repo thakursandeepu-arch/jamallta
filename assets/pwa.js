@@ -75,8 +75,9 @@
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/service-worker.js")
-      .then(function () {
+    navigator.serviceWorker.register("/service-worker.js?v=27")
+      .then(function (registration) {
+        try { registration.update(); } catch (_) {}
         if (isAndroid && !isAndroidWebView) {
           createInstallButton("apk");
           return;
