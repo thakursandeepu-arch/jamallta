@@ -83,6 +83,40 @@ let persistenceReady = false;
 let suppressAutoRedirect = false;
 const FORCE_LOGIN_KEY = "force_login";
 const SUPPRESS_KEY = "suppress_auto_redirect";
+const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
+
+function getSafeNextPath() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const next = params.get("next") || "";
+    if (!next || !next.startsWith("/") || next.startsWith("//")) return "";
+    const target = new URL(next, window.location.origin);
+    if (target.origin !== window.location.origin) return "";
+    if (target.pathname === "/login/login.html") return "";
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch (_) {
+    return "";
+  }
+}
+
+function redirectTo(path) {
+  window.location.replace(path);
+}
+
+function nextForRole(role) {
+  const next = getSafeNextPath();
+  if (role === "admin") {
+    return next.startsWith("/admin/") ? next : "/admin/admin.html";
+  }
+  if (role === "employee") {
+    return next.startsWith("/employee/") ? next : "/employee/employee.html";
+  }
+  if (role === "customer") {
+    return next.startsWith("/customer/") ? next : "/customer/customer-profile.html";
+  }
+  return "/";
+}
+
 async function ensurePersistence() {
   if (persistenceReady) return;
   try {
@@ -110,16 +144,20 @@ onAuthStateChanged(auth, (user) => {
 
 /* ================== ROLE BASED REDIRECT ================== */
 async function redirectByRole(uid) {
-  const ADMIN_EMAILS = ["thakursandeepu@gmail.com"];
   const currentEmail = (auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : "";
   const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
   const isAdminEmail = isAllowedAdminEmail(currentEmail);
+  if (isAdminEmail) {
+    redirectTo(nextForRole("admin"));
+    return;
+  }
+
   const goEmployee = async () => {
     try {
       // First try by uid
       const empSnap = await getDoc(doc(db, "employees", uid));
       if (empSnap.exists()) {
-        location.href = "../employee/employee.html";
+        redirectTo(nextForRole("employee"));
         return true;
       }
       // Fallback by email
@@ -127,7 +165,7 @@ async function redirectByRole(uid) {
         const empQ = query(collection(db, "employees"), where("email", "==", currentEmail));
         const empEmailSnap = await getDocs(empQ);
         if (!empEmailSnap.empty) {
-          location.href = "../employee/employee.html";
+          redirectTo(nextForRole("employee"));
           return true;
         }
       }
@@ -145,7 +183,7 @@ async function redirectByRole(uid) {
         const role = (adminSnap.data()?.role || "").toLowerCase();
         const docEmail = adminSnap.data()?.email || "";
         if (role.includes("admin") && (isAllowedAdminEmail(currentEmail) || isAllowedAdminEmail(docEmail))) {
-          location.href = "../admin/admin.html";
+          redirectTo(nextForRole("admin"));
           return true;
         }
       }
@@ -155,7 +193,7 @@ async function redirectByRole(uid) {
         if (!adminEmailSnap.empty) {
           const hasAdmin = adminEmailSnap.docs.some(d => ((d.data()?.role || "").toLowerCase()).includes("admin") && isAllowedAdminEmail(d.data()?.email));
           if (hasAdmin && isAllowedAdminEmail(currentEmail)) {
-            location.href = "../admin/admin.html";
+            redirectTo(nextForRole("admin"));
             return true;
           }
         }
@@ -175,7 +213,7 @@ async function redirectByRole(uid) {
         );
         const customerSnap = await getDocs(q);
         if (!customerSnap.empty) {
-          location.href = "../customer/customer-profile.html";
+          redirectTo(nextForRole("customer"));
           return true;
         }
       }

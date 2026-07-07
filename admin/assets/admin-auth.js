@@ -34,6 +34,15 @@ function redirectToLogin() {
   redirectTop(`/login/login.html?next=${encodeURIComponent(currentTarget())}`);
 }
 
+function parentAdminSessionOk() {
+  if (!isFramedAdminPage) return false;
+  try {
+    return window.parent?.document?.documentElement?.dataset?.adminAuth === "ok";
+  } catch (_) {
+    return false;
+  }
+}
+
 function markAdminAuthBlocked(reason) {
   console.warn(`[admin-auth] access not confirmed: ${reason}`);
   document.documentElement.dataset.adminAuth = "blocked";
@@ -100,6 +109,18 @@ async function setWelcomeName(user) {
 
 async function checkAdminAccess(user) {
   try {
+    if (parentAdminSessionOk()) {
+      revealPage();
+      if (user) {
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", () => setWelcomeName(user), { once: true });
+        } else {
+          setWelcomeName(user);
+        }
+      }
+      return;
+    }
+
     if (!user) {
       markAdminAuthBlocked("not signed in");
       redirectToLogin();
