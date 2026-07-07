@@ -141,12 +141,14 @@ onAuthStateChanged(auth, (user) => {
   }
   // avoid redirect loops on logout modal etc.
   startLoading();
-  redirectByRole(user.uid);
+  redirectByRole(user);
 });
 
 /* ================== ROLE BASED REDIRECT ================== */
-async function redirectByRole(uid) {
-  const currentEmail = (auth.currentUser && auth.currentUser.email) ? auth.currentUser.email : "";
+async function redirectByRole(userOrUid) {
+  const activeUser = (userOrUid && typeof userOrUid === "object") ? userOrUid : auth.currentUser;
+  const uid = activeUser?.uid || (typeof userOrUid === "string" ? userOrUid : "");
+  const currentEmail = (activeUser?.email || auth.currentUser?.email || "").toLowerCase();
   const isAllowedAdminEmail = (email) => ADMIN_EMAILS.includes((email || "").toLowerCase());
   const isAdminEmail = isAllowedAdminEmail(currentEmail);
   if (isAdminEmail) {
@@ -307,7 +309,7 @@ btn.onclick = async () => {
 
     // Professional delay (UX)
     setTimeout(() => {
-      redirectByRole(cred.user.uid);
+      redirectByRole(cred.user);
     }, 600);
 
   } catch (err) {
@@ -370,7 +372,7 @@ closeModal.onclick = () => {
   sessionStorage.removeItem(SUPPRESS_KEY);
   if (auth?.currentUser?.uid) {
     startLoading();
-    redirectByRole(auth.currentUser.uid);
+    redirectByRole(auth.currentUser);
   }
 };
 
