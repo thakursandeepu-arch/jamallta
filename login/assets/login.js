@@ -107,7 +107,7 @@ function redirectTo(path) {
 function nextForRole(role) {
   const next = getSafeNextPath();
   if (role === "admin") {
-    return next.startsWith("/admin/") ? next : "/admin/admin.html";
+    return next.startsWith("/admin/admin.html") ? next : "/admin/admin.html";
   }
   if (role === "employee") {
     return next.startsWith("/employee/") ? next : "/employee/employee.html";

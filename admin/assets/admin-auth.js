@@ -123,7 +123,9 @@ async function checkAdminAccess(user) {
 
     if (!user) {
       markAdminAuthBlocked("not signed in");
-      redirectToLogin();
+      if (!isFramedAdminPage) {
+        redirectToLogin();
+      }
       return;
     }
 
