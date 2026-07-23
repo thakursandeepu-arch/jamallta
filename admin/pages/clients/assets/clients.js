@@ -1,5 +1,5 @@
 // clients.js (updated with STRICT FIFO Payment Auto-Adjust System)
-import { auth, db, functions } from "/login/assets/firebase-config.js";
+import { auth, db, functions } from "../../../../login/assets/firebase-config.js";
 import {
   collection, query, orderBy, onSnapshot, where,
   getDocs, addDoc, deleteDoc, doc, getDoc, updateDoc, serverTimestamp,

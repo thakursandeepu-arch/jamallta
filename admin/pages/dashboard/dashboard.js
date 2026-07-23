@@ -1,4 +1,4 @@
-import { auth, db } from "/login/assets/firebase-config.js";
+import { auth, db } from "../../../login/assets/firebase-config.js";
 import {
   collection,
   onSnapshot,

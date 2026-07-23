@@ -1,4 +1,4 @@
-import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "../../../../login/assets/firebase-config.js";
 import {
   collection,
   onSnapshot,

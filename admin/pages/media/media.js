@@ -1,4 +1,4 @@
-import { db } from "/login/assets/firebase-config.js";
+import { db } from "../../../login/assets/firebase-config.js";
 import {
   collection,
   addDoc,
@@ -17,7 +17,7 @@ import {
   getDownloadURL,
   deleteObject
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-import { app } from "/login/assets/firebase-config.js";
+import { app } from "../../../login/assets/firebase-config.js";
 
 const storage = getStorage(app);
 

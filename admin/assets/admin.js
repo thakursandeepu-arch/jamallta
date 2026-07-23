@@ -2,6 +2,8 @@
 // 🎛 Admin UI Controller – FINAL
 
 document.addEventListener("DOMContentLoaded", () => {
+  const siteRoot = new URL("../", document.baseURI);
+  const siteUrl = (path) => new URL(String(path || "").replace(/^\/+/, ""), siteRoot).href;
 
   const frame       = document.getElementById("contentFrame");
   const pageTitle   = document.getElementById("pageTitle");
@@ -110,21 +112,21 @@ document.addEventListener("DOMContentLoaded", () => {
         const reg = await navigator.serviceWorker.ready;
         await reg.showNotification(title, {
           body: message,
-          icon: "/assets/brand/jamallta-films-luxury-logo.png",
+          icon: siteUrl("assets/brand/jamallta-films-luxury-logo.png"),
           tag: `admin-${Date.now()}`,
         });
         return;
       }
     } catch {}
     try {
-      new Notification(title, { body: message, icon: "/assets/brand/jamallta-films-luxury-logo.png" });
+      new Notification(title, { body: message, icon: siteUrl("assets/brand/jamallta-films-luxury-logo.png") });
     } catch {}
   }
 
   async function startAdminNotificationPanel() {
     if (adminNotifUnsub) return;
     try {
-      const { auth, db } = await import("/login/assets/firebase-config.js");
+      const { auth, db } = await import(siteUrl("login/assets/firebase-config.js"));
       const { onAuthStateChanged } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js");
       const {
         collection,
@@ -271,7 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try { localStorage.setItem("force_login", "1"); } catch(e){}
 
     try {
-      const { auth } = await import("/login/assets/firebase-config.js");
+      const { auth } = await import(siteUrl("login/assets/firebase-config.js"));
       const { signOut } = await import("https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js");
       await signOut(auth);
     } catch (e) {

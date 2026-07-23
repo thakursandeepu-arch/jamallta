@@ -1,33 +1,35 @@
-const CACHE_NAME = "jamallta-pwa-v25";
+const CACHE_NAME = "jamallta-pwa-v26";
+const SITE_ROOT = new URL(self.registration.scope);
+const siteUrl = (path = "") => new URL(String(path).replace(/^\/+/, ""), SITE_ROOT).href;
 const APP_SHELL = [
-  "/",
-  "/index.html",
-  "/offline.html",
-  "/packages.html",
-  "/himachal-video-editor.html",
-  "/pahadi-video-editor.html",
-  "/login/login.html",
-  "/customer/customer-profile.html",
-  "/customer/chat/customer-chet.html",
-  "/employee/index.html",
-  "/employee/employee.html",
-  "/employee/info.html",
-  "/employee/create-new-job/create-new-job.html",
-  "/admin/admin.html",
-  "/privacy.html",
-  "/terms.html",
-  "/proof.html",
-  "/service-areas.html",
-  "/pay.html",
-  "/favicon.ico",
-  "/manifest.webmanifest",
-  "/assets/pwa.js",
-  "/assets/app-session.js",
-  "/assets/brand/jamallta-films-luxury-logo-48.png",
-  "/assets/brand/jamallta-films-luxury-logo.png",
-  "/assets/brand/jamallta-films-luxury-logo-512.png",
-  "/assets/brand/jamallta-films-luxury-logo-192.png"
-];
+  "",
+  "index.html",
+  "offline.html",
+  "packages.html",
+  "himachal-video-editor.html",
+  "pahadi-video-editor.html",
+  "login/login.html",
+  "customer/customer-profile.html",
+  "customer/chat/customer-chet.html",
+  "employee/index.html",
+  "employee/employee.html",
+  "employee/info.html",
+  "employee/create-new-job/create-new-job.html",
+  "admin/admin.html",
+  "privacy.html",
+  "terms.html",
+  "proof.html",
+  "service-areas.html",
+  "pay.html",
+  "favicon.ico",
+  "manifest.webmanifest",
+  "assets/pwa.js",
+  "assets/app-session.js",
+  "assets/brand/jamallta-films-luxury-logo-48.png",
+  "assets/brand/jamallta-films-luxury-logo.png",
+  "assets/brand/jamallta-films-luxury-logo-512.png",
+  "assets/brand/jamallta-films-luxury-logo-192.png"
+].map(siteUrl);
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -57,7 +59,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
           return response;
         })
-        .catch(() => caches.match(event.request).then((cached) => cached || caches.match("/offline.html")))
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match(siteUrl("offline.html"))))
     );
     return;
   }
@@ -90,7 +92,7 @@ self.addEventListener("notificationclick", (event) => {
         clientsArr[0].focus();
         return;
       }
-      return self.clients.openWindow("/admin/admin.html");
+      return self.clients.openWindow(siteUrl("admin/admin.html"));
     })
   );
 });

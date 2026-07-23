@@ -6,6 +6,8 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 
 /* firebase-config is shared at /employee/firebase-config.js */
+const SITE_ROOT = new URL("../../", import.meta.url);
+const siteUrl = (path = "") => new URL(String(path).replace(/^\/+/, ""), SITE_ROOT).href;
 
 async function createAdminNotification({ title, message, studioName = "", jobNo = "", source = "" }) {
   try {
@@ -91,9 +93,9 @@ function showToast(msg, type="success") {
 tabCreate.addEventListener('click', ()=>{ tabCreate.classList.add('active'); tabPayments.classList.remove('active'); createTab.style.display='block'; paymentsTab.style.display='none'; });
 tabPayments.addEventListener('click', ()=>{ tabPayments.classList.add('active'); tabCreate.classList.remove('active'); createTab.style.display='none'; paymentsTab.style.display='block'; });
 
-backBtn.addEventListener('click', ()=> window.location.replace('/employee/employee.html'));
+backBtn.addEventListener('click', ()=> window.location.replace(siteUrl('employee/employee.html')));
 refreshBtn.addEventListener('click', ()=> location.reload());
-cancelCreate.addEventListener('click', ()=> window.location.replace('/employee/employee.html'));
+cancelCreate.addEventListener('click', ()=> window.location.replace(siteUrl('employee/employee.html')));
 
 // job/system helpers
 function parseJobNoNumber(jno) {

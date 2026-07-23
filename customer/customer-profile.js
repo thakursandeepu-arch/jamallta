@@ -28,6 +28,8 @@ const STATUS_PRIORITY = {
   "Assigned": 1
 };
 const functions = getFunctions(app, "us-central1");
+const SITE_ROOT = new URL("../", import.meta.url);
+const siteUrl = (path = "") => new URL(String(path).replace(/^\/+/, ""), SITE_ROOT).href;
 
 async function callFunction(endpoint, payload) {
   if (!navigator.onLine) throw new Error("No internet connection");
@@ -191,7 +193,7 @@ function requestNotificationsPermission() {
 }
 
 function openLoginPage() {
-  window.location.href = "/login/login.html";
+  window.location.href = siteUrl("login/login.html");
 }
 
 function showBrowserNotification(title, message) {
@@ -518,7 +520,7 @@ async function startPayment(amount, jobId) {
 }
 
 waitForAuthReady().then(() => onAuthStateChanged(auth, async (user) => {
-  if (!user) return location.href = "/login/login.html";
+  if (!user) return location.href = siteUrl("login/login.html");
 
   if (emailEl) emailEl.textContent = user.email || "-";
   currentUserEmail = user.email || "";
@@ -844,7 +846,7 @@ function renderJobs() {
 if (openChatBtn) {
   openChatBtn.onclick = () => {
     window.location.href =
-      `/customer/chat/customer-chet.html?studio=${encodeURIComponent(studioName)}`;
+      `${siteUrl("customer/chat/customer-chet.html")}?studio=${encodeURIComponent(studioName)}`;
   };
 }
 

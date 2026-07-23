@@ -1,4 +1,4 @@
-import { db } from "/login/assets/firebase-config.js";
+import { db } from "../../login/assets/firebase-config.js";
 import {
   collection, addDoc, onSnapshot,
   serverTimestamp, query, orderBy
@@ -9,6 +9,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
 
 const storage = getStorage();
+const SITE_ROOT = new URL("../../", import.meta.url);
+const siteUrl = (path = "") => new URL(String(path).replace(/^\/+/, ""), SITE_ROOT).href;
 
 const studioName = "Jamallta Films";
 const sender = "customer";
@@ -23,7 +25,7 @@ const backChatBtn = document.getElementById("backChatBtn");
 
 /* NAV */
 homeBtn.onclick = () => {
-  window.location.href = "/customer/customer-profile.html";
+  window.location.href = siteUrl("customer/customer-profile.html");
 };
 backChatBtn.onclick = homeBtn.onclick;
 

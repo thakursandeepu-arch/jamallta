@@ -1,5 +1,5 @@
 // script.js (module) - Firestore v11 modular SDK + Chart.js
-import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js";
+import { auth, db, waitForAuthReady } from "../../../login/assets/firebase-config.js";
 import {
   collection, query, where, orderBy, getDocs, getDoc, doc
 } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";

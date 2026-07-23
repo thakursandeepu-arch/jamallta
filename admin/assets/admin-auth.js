@@ -1,7 +1,7 @@
 // admin-auth.js
 // Admin Security Guard
 
-import { auth, db, waitForAuthReady } from "/login/assets/firebase-config.js?v=2";
+import { auth, db, waitForAuthReady } from "../../login/assets/firebase-config.js?v=2";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import {
   collection,

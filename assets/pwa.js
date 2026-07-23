@@ -1,8 +1,15 @@
 (function () {
+  var scriptUrl = document.currentScript && document.currentScript.src
+    ? new URL(document.currentScript.src)
+    : new URL("assets/pwa.js", document.baseURI);
+  var siteRoot = new URL("../", scriptUrl);
+  var siteUrl = function (path) {
+    return new URL(String(path || "").replace(/^\/+/, ""), siteRoot).href;
+  };
   var isMobileInstallDevice = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (!isMobileInstallDevice) return;
 
-  var ANDROID_APK_URL = "/dist/Jamallta-debug.apk";
+  var ANDROID_APK_URL = siteUrl("dist/Jamallta-debug.apk");
   var isAndroid = /Android/i.test(navigator.userAgent);
   var isAndroidWebView = isAndroid && /; wv\)|Version\/[\d.]+ Chrome\/[\d.]+ Mobile Safari/i.test(navigator.userAgent);
   var deferredInstallPrompt = null;
@@ -57,7 +64,7 @@
   if (!document.querySelector('link[rel="manifest"]')) {
     var manifest = document.createElement("link");
     manifest.rel = "manifest";
-    manifest.href = "/manifest.webmanifest";
+    manifest.href = siteUrl("manifest.webmanifest");
     document.head.appendChild(manifest);
   }
 
@@ -75,7 +82,7 @@
   if (!("serviceWorker" in navigator)) return;
 
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/service-worker.js")
+    navigator.serviceWorker.register(siteUrl("service-worker.js"), { scope: siteRoot.pathname })
       .then(function () {
         if (isAndroid && !isAndroidWebView) {
           createInstallButton("apk");

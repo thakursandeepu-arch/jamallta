@@ -1,6 +1,6 @@
 // recycle-bin.js (ES module)
 
-import { db } from "/login/assets/firebase-config.js";
+import { db } from "../../../../login/assets/firebase-config.js";
 import {
   collection, query, orderBy, onSnapshot, where,
   getDocs, updateDoc, deleteDoc, doc
